@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Settings } from 'lucide-react'
+import { Settings, Github } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -167,6 +167,21 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <span className="text-xs text-muted-foreground">Wrap text instead of truncating with ...</span>
             </div>
           </div>
+        </div>
+
+        <Separator />
+
+        <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          <a
+            href="https://github.com/noFlowWater/yukebox"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+          >
+            <Github className="h-3 w-3" />
+            noFlowWater/yukebox
+          </a>
+          <span>v{process.env.APP_VERSION}</span>
         </div>
       </DialogContent>
     </Dialog>

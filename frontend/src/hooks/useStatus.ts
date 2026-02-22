@@ -7,7 +7,7 @@ import { getStatusStreamUrl } from '@/lib/api'
 const RECONNECT_INTERVAL = 3000
 const MAX_RETRIES = 10
 
-const EMPTY_STATUS: PlaybackStatus = {
+export const EMPTY_STATUS: PlaybackStatus = {
   playing: false,
   paused: false,
   title: '',
@@ -17,6 +17,7 @@ const EMPTY_STATUS: PlaybackStatus = {
   volume: 0,
   speaker_id: null,
   speaker_name: null,
+  has_next: false,
 }
 
 export function useStatus() {

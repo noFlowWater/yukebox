@@ -25,6 +25,7 @@ describe('mpv types', () => {
       volume: 60,
       speaker_id: null,
       speaker_name: null,
+      has_next: false,
     })
   })
 

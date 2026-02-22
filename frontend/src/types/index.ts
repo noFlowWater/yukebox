@@ -30,6 +30,7 @@ export interface PlaybackStatus {
   volume: number
   speaker_id: number | null
   speaker_name: string | null
+  has_next: boolean
 }
 
 // Queue

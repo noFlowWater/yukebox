@@ -271,6 +271,7 @@ class MpvService extends EventEmitter {
         volume: (volume as number) || 60,
         speaker_id: this.activeSpeakerId,
         speaker_name: this.activeSpeakerName,
+        has_next: false,
       }
     } catch {
       // return cached status on error

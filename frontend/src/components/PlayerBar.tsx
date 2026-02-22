@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Play, Pause, Square, Volume2, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
-import { useStatus } from '@/hooks/useStatus'
+import { useStatus, EMPTY_STATUS } from '@/hooks/useStatus'
 import { formatDuration, handleApiError } from '@/lib/utils'
+import type { PlaybackStatus } from '@/types'
 import * as api from '@/lib/api'
 
 export function PlayerBar() {
@@ -15,6 +16,65 @@ export function PlayerBar() {
   const [seekLocal, setSeekLocal] = useState<number | null>(null)
   const [smoothPosition, setSmoothPosition] = useState(0)
   const sseSnapshotRef = useRef({ position: 0, time: Date.now() })
+
+  // --- Hold previous track during natural transitions ---
+  const [displayStatus, setDisplayStatus] = useState<PlaybackStatus>(EMPTY_STATUS)
+  const lastActiveStatusRef = useRef<PlaybackStatus | null>(null)
+  const userStoppedRef = useRef(false)
+
+  useEffect(() => {
+    const isActive = status.playing || status.paused
+
+    if (isActive) {
+      // New track arrived — update display immediately
+      userStoppedRef.current = false
+      lastActiveStatusRef.current = status
+      setDisplayStatus(status)
+      return
+    }
+
+    // User explicitly stopped — show idle immediately
+    if (userStoppedRef.current) {
+      lastActiveStatusRef.current = null
+      setDisplayStatus(status)
+      return
+    }
+
+    // Track ended naturally — hold previous display only if backend has a next track
+    if (lastActiveStatusRef.current && status.has_next) {
+      return
+    }
+
+    // Nothing coming — show idle
+    lastActiveStatusRef.current = null
+    setDisplayStatus(status)
+  }, [status])
+
+  // --- Title fade on track change ---
+  const [titleOpacity, setTitleOpacity] = useState(1)
+  const prevTitleRef = useRef('')
+
+  useEffect(() => {
+    if (displayStatus.title && displayStatus.title !== prevTitleRef.current && prevTitleRef.current !== '') {
+      setTitleOpacity(0)
+      const timer = setTimeout(() => setTitleOpacity(1), 150)
+      prevTitleRef.current = displayStatus.title
+      return () => clearTimeout(timer)
+    }
+    prevTitleRef.current = displayStatus.title
+  }, [displayStatus.title])
+
+  // --- Marquee overflow detection ---
+  const titleRef = useRef<HTMLDivElement>(null)
+  const measureRef = useRef<HTMLSpanElement>(null)
+  const [titleOverflows, setTitleOverflows] = useState(false)
+
+  useLayoutEffect(() => {
+    const measure = measureRef.current
+    const container = titleRef.current
+    if (!measure || !container) return
+    setTitleOverflows(measure.offsetWidth > container.clientWidth)
+  }, [displayStatus.title])
 
   // Sync snapshot on every SSE update
   useEffect(() => {
@@ -49,10 +109,12 @@ export function PlayerBar() {
   }, [])
 
   const handleStop = useCallback(async () => {
+    userStoppedRef.current = true
     try {
       await api.stop()
     } catch (err) {
       handleApiError(err, 'Stop failed')
+      userStoppedRef.current = false
     }
   }, [])
 
@@ -111,7 +173,7 @@ export function PlayerBar() {
   }, [])
 
   // Idle state
-  if (!status.playing && !status.paused) {
+  if (!displayStatus.playing && !displayStatus.paused) {
     return (
       <div data-player-bar className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-center text-muted-foreground">
@@ -122,12 +184,14 @@ export function PlayerBar() {
     )
   }
 
+  const showMarquee = displayStatus.playing && !displayStatus.paused && titleOverflows
+
   return (
     <div data-player-bar className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
       {/* Seek bar */}
       <Slider
         value={[position]}
-        max={status.duration || 1}
+        max={status.duration || displayStatus.duration || 1}
         step={0.1}
         onValueChange={handleSeekDrag}
         onValueCommit={handleSeekCommit}
@@ -137,10 +201,30 @@ export function PlayerBar() {
       <div className="max-w-2xl mx-auto px-4 py-2 flex items-center gap-3">
         {/* Now playing info */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{status.title}</p>
+          <div
+            ref={titleRef}
+            className="overflow-hidden transition-opacity duration-300 relative"
+            style={{ opacity: titleOpacity }}
+          >
+            <span
+              ref={measureRef}
+              className="text-sm font-medium whitespace-nowrap absolute invisible pointer-events-none"
+              aria-hidden="true"
+            >
+              {displayStatus.title}
+            </span>
+            {showMarquee ? (
+              <div className="animate-marquee whitespace-nowrap w-max">
+                <span className="text-sm font-medium pr-8">{displayStatus.title}</span>
+                <span className="text-sm font-medium pr-8" aria-hidden="true">{displayStatus.title}</span>
+              </div>
+            ) : (
+              <p className="text-sm font-medium truncate">{displayStatus.title}</p>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
-            {status.speaker_name && <span>{status.speaker_name} &middot; </span>}
-            {formatDuration(position)} / {formatDuration(status.duration)}
+            {displayStatus.speaker_name && <span>{displayStatus.speaker_name} &middot; </span>}
+            {formatDuration(position)} / {formatDuration(status.duration || displayStatus.duration)}
           </p>
         </div>
 

@@ -8,6 +8,7 @@ export interface MpvStatus {
   volume: number
   speaker_id: number | null
   speaker_name: string | null
+  has_next: boolean
 }
 
 export const EMPTY_STATUS: MpvStatus = {
@@ -20,6 +21,7 @@ export const EMPTY_STATUS: MpvStatus = {
   volume: 60,
   speaker_id: null,
   speaker_name: null,
+  has_next: false,
 }
 
 export interface MpvIpcResponse {

@@ -7,6 +7,7 @@ import { AccessibilityProvider } from '@/contexts/AccessibilityContext'
 import './globals.css'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: 'YukeBox',
   description: 'Self-hosted YouTube music player for Bluetooth speakers',
   manifest: '/manifest.json',

@@ -4,7 +4,8 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { handleApiError } from '@/lib/utils'
-import { LogOut, Shield, Heart, Loader2, Music, User, ChevronDown, Settings, Search, ArrowLeft } from 'lucide-react'
+import { LogOut, Shield, Heart, Loader2, User, ChevronDown, Settings, Search, ArrowLeft } from 'lucide-react'
+import Image from 'next/image'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   DropdownMenu,
@@ -279,7 +280,7 @@ export default function Home() {
             /* Default header */
             <>
               <div className="flex items-center gap-2">
-                <Music className="h-5 w-5 text-primary" />
+                <Image src="/icon.svg" alt="YukeBox" width={20} height={20} />
                 <span className="text-base font-semibold">YukeBox</span>
               </div>
 

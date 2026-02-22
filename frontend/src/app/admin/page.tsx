@@ -233,28 +233,32 @@ export default function AdminPage() {
                   </Badge>
                 </div>
                 {u.id !== currentUser?.id && (
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Select
-                      value={u.role}
-                      onValueChange={(v) => handleRoleChange(u.id, v as User['role'])}
-                    >
-                      <SelectTrigger className="w-[110px] h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="user">User</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(u.id, u.username)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => handleRoleChange(u.id, u.role === 'admin' ? 'user' : 'admin')}
+                      >
+                        {u.role === 'admin' ? (
+                          <><UserIcon className="h-4 w-4 mr-2" />Demote to User</>
+                        ) : (
+                          <><Shield className="h-4 w-4 mr-2" />Promote to Admin</>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => handleDelete(u.id, u.username)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
               </div>
             ))}

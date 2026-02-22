@@ -38,40 +38,84 @@ cd frontend && npm run test:e2e
 
 ---
 
+## Branch Strategy
+
+We use **GitHub Flow** — all work happens on feature branches merged into `main`.
+
+```
+main              ← always deployable, protected
+feat/description  ← new features
+fix/description   ← bug fixes
+refactor/...      ← code restructuring
+chore/...         ← tooling, deps, config
+docs/...          ← documentation
+```
+
+- All PRs target `main`
+- No `dev` or `release` branches
+- Releases are tagged on `main` (`v0.1.0`, `v0.2.0`, ...)
+
+---
+
 ## Commit Convention
 
-We use [Conventional Commits](https://www.conventionalcommits.org):
+We use [Conventional Commits](https://www.conventionalcommits.org). **PR titles are validated by CI** — your PR title must follow this format:
 
 ```
-feat: add queue shuffle feature
-fix: volume slider not updating on mobile
+type(scope): description
+```
+
+**Types:**
+
+| Type | When to use |
+|------|-------------|
+| `feat` | New feature visible to users |
+| `fix` | Bug fix |
+| `refactor` | Code restructuring (no behavior change) |
+| `chore` | Dependencies, config, tooling |
+| `docs` | Documentation only |
+| `test` | Test additions or changes |
+| `ci` | CI/CD pipeline changes |
+| `style` | Code formatting (no logic change) |
+| `perf` | Performance improvement |
+
+**Scopes** (optional):
+
+| Scope | Area |
+|-------|------|
+| `server` | Backend (Fastify) |
+| `frontend` | Frontend (Next.js) |
+| `docker` | Docker / infrastructure |
+
+**Examples:**
+
+```
+feat(server): add queue shuffle endpoint
+fix(frontend): volume slider not updating on mobile
+chore(docker): update base image to node 22
+refactor(server): extract player state to service
 docs: update API endpoint documentation
-refactor: extract player state to custom hook
-chore: update Docker base image
-test: add schedule edge case tests
 ```
-
-**Format:** `type: description in English`
-
-**Types:** `feat` | `fix` | `docs` | `refactor` | `chore` | `test` | `style` | `ci`
 
 ---
 
 ## Pull Requests
 
+All PRs are **squash merged** — your PR title becomes the commit message on `main`.
+
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/your-feature`
+2. Create a branch: `git checkout -b feat/your-feature`
 3. Make your changes following the coding standards below
 4. Write or update tests as needed
-5. Commit with conventional commit messages
-6. Push and open a Pull Request against `main`
+5. Push and open a Pull Request against `main`
+6. Ensure the PR title follows Conventional Commits format
 
 ### PR Checklist
 
+- [ ] PR title follows `type(scope): description` format
 - [ ] Code follows project coding standards
-- [ ] Tests pass (`npm test` in backend)
+- [ ] Tests pass (`cd backend && npm test`)
 - [ ] TypeScript compiles without errors (`npx tsc --noEmit`)
-- [ ] Commit messages follow conventional commits
 
 ---
 

@@ -151,6 +151,11 @@ export async function rename(id: number, displayName: string): Promise<SpeakerPu
 
     speakerRepo.update(id, displayName)
 
+    // Sync cached name in mpv if this is the active speaker
+    if (mpvService.getActiveSpeakerId() === id) {
+      mpvService.setActiveSpeaker(id, speaker.sink_name, displayName)
+    }
+
     const updated = speakerRepo.findById(id)!
 
     let sinks: { name: string; state: string }[] = []

@@ -185,22 +185,22 @@ export default function AdminPage() {
             {users.map((u) => (
               <div
                 key={u.id}
-                className="flex items-center justify-between rounded-lg border border-border p-3"
+                className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   {getRoleIcon(u.role)}
-                  <span className="text-sm font-medium">{u.username}</span>
-                  <Badge variant={getRoleBadgeVariant(u.role)}>
+                  <span className="text-sm font-medium truncate">{u.username}</span>
+                  <Badge variant={getRoleBadgeVariant(u.role)} className="shrink-0">
                     {ROLE_LABELS[u.role]}
                   </Badge>
                 </div>
                 {u.id !== currentUser?.id && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <Select
                       value={u.role}
                       onValueChange={(v) => handleRoleChange(u.id, v as User['role'])}
                     >
-                      <SelectTrigger className="w-[140px] h-8 text-xs">
+                      <SelectTrigger className="w-[110px] h-8 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -244,50 +244,52 @@ export default function AdminPage() {
               speakers.map((s) => (
                 <div
                   key={s.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                  className="flex flex-col gap-2 rounded-lg border border-border p-3"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium truncate">{s.display_name}</span>
-                        {s.active && (
-                          <span className="inline-block w-2 h-2 rounded-full bg-success animate-pulse shrink-0" />
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-medium truncate">{s.display_name}</span>
+                      {s.active && (
+                        <span className="inline-block w-2 h-2 rounded-full bg-success animate-pulse shrink-0" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant={s.online ? 'default' : 'secondary'}>
+                        {s.online ? (
+                          <><Wifi className="h-3 w-3 mr-1" />Online</>
+                        ) : (
+                          <><WifiOff className="h-3 w-3 mr-1" />Offline</>
                         )}
-                      </div>
-                      <span className="text-xs text-muted-foreground truncate">{s.sink_name}</span>
+                      </Badge>
+                      {s.is_default && (
+                        <Badge variant="outline">
+                          <Star className="h-3 w-3 mr-1" />Default
+                        </Badge>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant={s.online ? 'default' : 'secondary'}>
-                      {s.online ? (
-                        <><Wifi className="h-3 w-3 mr-1" />Online</>
-                      ) : (
-                        <><WifiOff className="h-3 w-3 mr-1" />Offline</>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground truncate">{s.sink_name}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {!s.is_default && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => handleSetDefault(s.id)}
+                        >
+                          Set Default
+                        </Button>
                       )}
-                    </Badge>
-                    {s.is_default && (
-                      <Badge variant="outline">
-                        <Star className="h-3 w-3 mr-1" />Default
-                      </Badge>
-                    )}
-                    {!s.is_default && (
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="text-xs h-7"
-                        onClick={() => handleSetDefault(s.id)}
+                        size="icon"
+                        className="text-destructive hover:text-destructive h-7 w-7"
+                        onClick={() => handleRemoveSpeaker(s.id, s.display_name)}
                       >
-                        Set Default
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveSpeaker(s.id, s.display_name)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </div>
                   </div>
                 </div>
               ))

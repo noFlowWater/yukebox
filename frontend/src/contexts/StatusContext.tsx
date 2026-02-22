@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import type { PlaybackStatus } from '@/types'
 import { getStatusStreamUrl } from '@/lib/api'
 
@@ -20,7 +20,22 @@ export const EMPTY_STATUS: PlaybackStatus = {
   has_next: false,
 }
 
-export function useStatus() {
+interface StatusContextValue {
+  status: PlaybackStatus
+  connected: boolean
+}
+
+const StatusContext = createContext<StatusContextValue | null>(null)
+
+export function useStatus(): StatusContextValue {
+  const ctx = useContext(StatusContext)
+  if (!ctx) {
+    throw new Error('useStatus must be used within StatusProvider')
+  }
+  return ctx
+}
+
+export function StatusProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<PlaybackStatus>(EMPTY_STATUS)
   const [connected, setConnected] = useState(false)
   const retriesRef = useRef(0)
@@ -76,5 +91,9 @@ export function useStatus() {
     }
   }, [connect])
 
-  return { status, connected }
+  return (
+    <StatusContext.Provider value={{ status, connected }}>
+      {children}
+    </StatusContext.Provider>
+  )
 }

@@ -207,7 +207,8 @@ class MpvService extends EventEmitter {
     } else {
       await this.command('loadfile', url, 'replace')
     }
-    // Apply default volume on every new track
+    // Reset pause state and apply default volume on every new track
+    await this.setProperty('pause', false)
     await this.setProperty('volume', this.defaultVolume)
     this.status.volume = this.defaultVolume
     this.status.playing = true

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Trash2, Shield, User as UserIcon, ArrowLeft, Loader2, Speaker, Wifi, WifiOff, Star, Plus } from 'lucide-react'
+import { Trash2, Shield, User as UserIcon, ArrowLeft, Loader2, Speaker, Wifi, WifiOff, Star, Plus, MoreVertical, Pencil, Check, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleApiError } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,13 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/hooks/useAuth'
 import { useSpeaker } from '@/contexts/SpeakerContext'
 import * as api from '@/lib/api'
@@ -58,6 +65,8 @@ export default function AdminPage() {
   const [speakersLoading, setSpeakersLoading] = useState(true)
   const [newSpeakerSink, setNewSpeakerSink] = useState('')
   const [newSpeakerName, setNewSpeakerName] = useState('')
+  const [renamingId, setRenamingId] = useState<number | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -150,6 +159,30 @@ export default function AdminPage() {
       await refreshSpeakers()
     } catch (err) {
       handleApiError(err, 'Failed to set default')
+    }
+  }
+
+  function startRename(speaker: SpeakerType) {
+    setRenamingId(speaker.id)
+    setRenameValue(speaker.display_name)
+  }
+
+  function cancelRename() {
+    setRenamingId(null)
+    setRenameValue('')
+  }
+
+  async function submitRename(id: number) {
+    const trimmed = renameValue.trim()
+    if (!trimmed) return
+    try {
+      await api.renameSpeaker(id, trimmed)
+      toast.success('Speaker renamed')
+      cancelRename()
+      await fetchSpeakers()
+      await refreshSpeakers()
+    } catch (err) {
+      handleApiError(err, 'Failed to rename speaker')
     }
   }
 
@@ -248,9 +281,42 @@ export default function AdminPage() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-sm font-medium truncate">{s.display_name}</span>
-                      {s.active && (
-                        <span className="inline-block w-2 h-2 rounded-full bg-success animate-pulse shrink-0" />
+                      {renamingId === s.id ? (
+                        <div className="flex items-center gap-1 min-w-0">
+                          <Input
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') submitRename(s.id)
+                              if (e.key === 'Escape') cancelRename()
+                            }}
+                            className="h-7 text-sm w-40"
+                            autoFocus
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-primary"
+                            onClick={() => submitRename(s.id)}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={cancelRename}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-sm font-medium truncate">{s.display_name}</span>
+                          {s.active && (
+                            <span className="inline-block w-2 h-2 rounded-full bg-success animate-pulse shrink-0" />
+                          )}
+                        </>
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -266,31 +332,36 @@ export default function AdminPage() {
                           <Star className="h-3 w-3 mr-1" />Default
                         </Badge>
                       )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => startRename(s)}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Rename
+                          </DropdownMenuItem>
+                          {!s.is_default && (
+                            <DropdownMenuItem onClick={() => handleSetDefault(s.id)}>
+                              <Star className="h-4 w-4 mr-2" />
+                              Set Default
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => handleRemoveSpeaker(s.id, s.display_name)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-muted-foreground truncate">{s.sink_name}</span>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {!s.is_default && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs h-7"
-                          onClick={() => handleSetDefault(s.id)}
-                        >
-                          Set Default
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive h-7 w-7"
-                        onClick={() => handleRemoveSpeaker(s.id, s.display_name)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  <span className="text-xs text-muted-foreground truncate">{s.sink_name}</span>
                 </div>
               ))
             )}

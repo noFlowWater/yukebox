@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Play, Pause, Square, Volume2, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { useStatus } from '@/hooks/useStatus'
 import { formatDuration, handleApiError } from '@/lib/utils'
 import * as api from '@/lib/api'
@@ -169,8 +170,8 @@ export function PlayerBar() {
           </Button>
         </div>
 
-        {/* Volume */}
-        <div className="flex items-center gap-2 w-20 sm:w-28 shrink-0">
+        {/* Volume — desktop inline */}
+        <div className="hidden sm:flex items-center gap-2 w-28 shrink-0">
           <Volume2 className="h-4 w-4 text-muted-foreground shrink-0" />
           <Slider
             value={[volume]}
@@ -180,6 +181,31 @@ export function PlayerBar() {
             onValueCommit={handleVolumeCommit}
             className="flex-1"
           />
+        </div>
+
+        {/* Volume — mobile popover */}
+        <div className="sm:hidden shrink-0">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8" title="Volume">
+                <Volume2 className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="end" className="w-48 p-3">
+              <div className="flex items-center gap-3">
+                <Volume2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Slider
+                  value={[volume]}
+                  max={100}
+                  step={1}
+                  onValueChange={handleVolumeDrag}
+                  onValueCommit={handleVolumeCommit}
+                  className="flex-1"
+                />
+                <span className="text-xs text-muted-foreground w-8 text-right shrink-0">{Math.round(volume)}%</span>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </div>

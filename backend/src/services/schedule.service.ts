@@ -113,16 +113,20 @@ async function checkDueSchedules(): Promise<void> {
 
       // Handle speaker
       const speakerId = schedule.speaker_id ?? mpvService.getActiveSpeakerId()
+      let scheduleVolume = settingsService.getDefaultVolume()
+      if (speakerId) {
+        const spk = speakerRepo.findById(speakerId)
+        if (spk) scheduleVolume = spk.default_volume ?? settingsService.getDefaultVolume()
+      }
       if (speakerId && speakerId !== mpvService.getActiveSpeakerId()) {
         const speaker = speakerRepo.findById(speakerId)
         if (speaker) {
-          const volume = speaker.default_volume ?? settingsService.getDefaultVolume()
           suppressScheduleStop = true
           setSuppressStopCleanup(true)
           setSuppressAutoAdvance(true)
           try {
             if (mpvService.isConnected()) await mpvService.stop()
-            mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name, volume)
+            mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name, scheduleVolume)
           } finally {
             suppressScheduleStop = false
             setSuppressStopCleanup(false)
@@ -136,7 +140,7 @@ async function checkDueSchedules(): Promise<void> {
       setSuppressStopCleanup(true)
       setSuppressAutoAdvance(true)
       try {
-        await mpvService.play(track.audioUrl, track.title)
+        await mpvService.play(track.audioUrl, track.title, undefined, scheduleVolume)
         scheduleRepo.updateStatus(schedule.id, 'playing')
       } catch {
         suppressScheduleStop = false

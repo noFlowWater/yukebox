@@ -166,7 +166,7 @@ export async function playItem(id: number): Promise<QueueItem | null> {
     }
 
     const track = await ytdlp.resolve(item.url)
-    await mpvService.play(track.audioUrl, track.title)
+    await mpvService.play(track.audioUrl, track.title, undefined, resolveVolume(item.speaker_id))
   } catch {
     // Play failed — remove the item
     queueRepo.remove(id)
@@ -198,7 +198,7 @@ export async function resumePaused(): Promise<QueueItem | null> {
     }
 
     const track = await ytdlp.resolve(paused.url)
-    await mpvService.play(track.audioUrl, paused.title, paused.paused_position ?? undefined)
+    await mpvService.play(track.audioUrl, paused.title, paused.paused_position ?? undefined, resolveVolume(paused.speaker_id))
   } catch {
     queueRepo.remove(paused.id)
   } finally {
@@ -236,7 +236,7 @@ export async function playNext(): Promise<QueueItem | null> {
     }
 
     const track = await ytdlp.resolve(next.url)
-    await mpvService.play(track.audioUrl, track.title)
+    await mpvService.play(track.audioUrl, track.title, undefined, resolveVolume(next.speaker_id))
   } catch {
     // If play fails, remove the item
     queueRepo.remove(next.id)

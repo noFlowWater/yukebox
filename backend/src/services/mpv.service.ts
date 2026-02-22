@@ -195,7 +195,10 @@ class MpvService extends EventEmitter {
     })
   }
 
-  async play(url: string, title?: string, startPosition?: number): Promise<void> {
+  async play(url: string, title?: string, startPosition?: number, volume?: number): Promise<void> {
+    if (volume !== undefined) {
+      this.defaultVolume = volume
+    }
     if (!this.process) {
       await this.start(this.sinkName ?? undefined)
     }
@@ -204,6 +207,9 @@ class MpvService extends EventEmitter {
     } else {
       await this.command('loadfile', url, 'replace')
     }
+    // Apply default volume on every new track
+    await this.setProperty('volume', this.defaultVolume)
+    this.status.volume = this.defaultVolume
     this.status.playing = true
     this.status.paused = false
     this.status.url = url

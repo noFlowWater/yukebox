@@ -64,7 +64,7 @@ async function resolveAndPlay(
       mpvService.setActiveSpeaker(speakerToSwitch.id, speakerToSwitch.sink_name, speakerToSwitch.display_name, defaultVolume)
     }
 
-    await mpvService.play(track.audioUrl, track.title)
+    await mpvService.play(track.audioUrl, track.title, undefined, defaultVolume)
   } catch {
     queueRepo.remove(queueItemId)
   } finally {
@@ -140,7 +140,7 @@ export async function play(input: {
       mpvService.setActiveSpeaker(speakerToSwitch.id, speakerToSwitch.sink_name, speakerToSwitch.display_name, defaultVolume)
     }
 
-    await mpvService.play(track.audioUrl, track.title)
+    await mpvService.play(track.audioUrl, track.title, undefined, defaultVolume)
   } catch {
     queueRepo.remove(queueItem.id)
     throw new Error('Playback failed')

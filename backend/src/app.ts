@@ -33,6 +33,12 @@ export function buildApp() {
     instance.register(speakerAdminRoutes)
   })
 
+  // Settings admin routes (requireAuth + requireAdmin inside the route plugin)
+  app.register(async (instance) => {
+    const { settingsAdminRoutes } = await import('./routes/settings.js')
+    instance.register(settingsAdminRoutes)
+  })
+
   // User routes: requireAuth + requireUser (playback features)
   app.register(async function userRoutes(instance) {
     instance.addHook('preHandler', requireAuth)
@@ -46,6 +52,8 @@ export function buildApp() {
     instance.register(import('./routes/favorite.js'))
     const { speakerUserRoutes } = await import('./routes/speaker.js')
     instance.register(speakerUserRoutes)
+    const { settingsUserRoutes } = await import('./routes/settings.js')
+    instance.register(settingsUserRoutes)
   })
 
   return app

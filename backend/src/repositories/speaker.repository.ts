@@ -54,3 +54,9 @@ export function count(): number {
   const row = db.prepare('SELECT COUNT(*) as count FROM speakers').get() as { count: number }
   return row.count
 }
+
+export function updateDefaultVolume(id: number, volume: number | null): boolean {
+  const db = getDb()
+  const result = db.prepare('UPDATE speakers SET default_volume = ? WHERE id = ?').run(volume, id)
+  return result.changes > 0
+}

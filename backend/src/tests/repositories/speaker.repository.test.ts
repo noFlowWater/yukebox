@@ -124,4 +124,32 @@ describe('speaker.repository', () => {
     speakerRepo.insert('sink2', 'Bedroom')
     expect(speakerRepo.count()).toBe(2)
   })
+
+  it('should have null default_volume on insert', () => {
+    const speaker = speakerRepo.insert('sink1', 'Living Room')
+    expect(speaker.default_volume).toBeNull()
+  })
+
+  it('should update default_volume', () => {
+    const speaker = speakerRepo.insert('sink1', 'Living Room')
+    const updated = speakerRepo.updateDefaultVolume(speaker.id, 75)
+    expect(updated).toBe(true)
+
+    const found = speakerRepo.findById(speaker.id)
+    expect(found!.default_volume).toBe(75)
+  })
+
+  it('should set default_volume back to null', () => {
+    const speaker = speakerRepo.insert('sink1', 'Living Room')
+    speakerRepo.updateDefaultVolume(speaker.id, 80)
+    speakerRepo.updateDefaultVolume(speaker.id, null)
+
+    const found = speakerRepo.findById(speaker.id)
+    expect(found!.default_volume).toBeNull()
+  })
+
+  it('should return false when updating volume for non-existent speaker', () => {
+    const updated = speakerRepo.updateDefaultVolume(999, 50)
+    expect(updated).toBe(false)
+  })
 })

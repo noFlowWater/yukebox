@@ -4,6 +4,7 @@ import * as ytdlp from './ytdlp.service.js'
 import { mpvService } from './mpv.service.js'
 import { setSuppressStopCleanup, setSuppressAutoAdvance, resumePaused } from './queue.service.js'
 import * as speakerRepo from '../repositories/speaker.repository.js'
+import * as settingsService from './settings.service.js'
 import type { Schedule } from '../types/schedule.js'
 
 let timer: ReturnType<typeof setInterval> | null = null
@@ -115,12 +116,13 @@ async function checkDueSchedules(): Promise<void> {
       if (speakerId && speakerId !== mpvService.getActiveSpeakerId()) {
         const speaker = speakerRepo.findById(speakerId)
         if (speaker) {
+          const volume = speaker.default_volume ?? settingsService.getDefaultVolume()
           suppressScheduleStop = true
           setSuppressStopCleanup(true)
           setSuppressAutoAdvance(true)
           try {
             if (mpvService.isConnected()) await mpvService.stop()
-            mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name)
+            mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name, volume)
           } finally {
             suppressScheduleStop = false
             setSuppressStopCleanup(false)

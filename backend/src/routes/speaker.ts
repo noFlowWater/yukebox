@@ -5,6 +5,7 @@ import {
   handleRemove,
   handleRename,
   handleSetDefault,
+  handleUpdateVolume,
   handleAvailableSinks,
   handleActivate,
 } from '../controllers/speaker.controller.js'
@@ -23,5 +24,6 @@ export async function speakerAdminRoutes(app: FastifyInstance): Promise<void> {
   app.delete('/api/speakers/:id', handleRemove)
   app.patch('/api/speakers/:id', handleRename)
   app.patch('/api/speakers/:id/default', handleSetDefault)
+  app.patch('/api/speakers/:id/volume', handleUpdateVolume)
   app.get('/api/speakers/available', handleAvailableSinks)
 }

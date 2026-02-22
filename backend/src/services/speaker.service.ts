@@ -1,6 +1,7 @@
 import * as speakerRepo from '../repositories/speaker.repository.js'
 import * as pulseService from './pulse.service.js'
 import { mpvService } from './mpv.service.js'
+import * as settingsService from './settings.service.js'
 import { toPublicSpeaker } from '../types/speaker.js'
 import type { SpeakerPublic, AvailableSink } from '../types/speaker.js'
 
@@ -102,7 +103,8 @@ export async function activateSpeaker(id: number): Promise<SpeakerPublic> {
       await mpvService.stop()
     }
 
-    mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name)
+    const volume = speaker.default_volume ?? settingsService.getDefaultVolume()
+    mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name, volume)
 
     let sinks: { name: string; state: string }[] = []
     try {
@@ -189,6 +191,33 @@ export async function setDefault(id: number): Promise<SpeakerPublic> {
     if (err instanceof SpeakerError) throw err
     const message = err instanceof Error ? err.message : 'Unknown error'
     throw new SpeakerError('SET_DEFAULT_ERROR', message)
+  }
+}
+
+export async function updateDefaultVolume(id: number, volume: number | null): Promise<SpeakerPublic> {
+  try {
+    const speaker = speakerRepo.findById(id)
+    if (!speaker) {
+      throw new SpeakerError('NOT_FOUND', 'Speaker not found')
+    }
+
+    speakerRepo.updateDefaultVolume(id, volume)
+
+    const updated = speakerRepo.findById(id)!
+
+    let sinks: { name: string; state: string }[] = []
+    try {
+      sinks = await pulseService.listSinks()
+    } catch {
+      // pactl unavailable
+    }
+
+    const sink = sinks.find((s) => s.name === updated.sink_name)
+    return toPublicSpeaker(updated, !!sink, sink?.state ?? 'UNAVAILABLE')
+  } catch (err) {
+    if (err instanceof SpeakerError) throw err
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    throw new SpeakerError('UPDATE_VOLUME_ERROR', message)
   }
 }
 

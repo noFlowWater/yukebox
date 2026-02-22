@@ -154,4 +154,18 @@ function runMigrations(db: Database.Database): void {
       db.prepare('UPDATE schema_version SET version = ?').run(6)
     })()
   }
+
+  if (version < 7) {
+    db.transaction(() => {
+      db.exec(`ALTER TABLE speakers ADD COLUMN default_volume INTEGER`)
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )
+      `)
+      db.exec(`INSERT INTO settings (key, value) VALUES ('default_volume', '60')`)
+      db.prepare('UPDATE schema_version SET version = ?').run(7)
+    })()
+  }
 }

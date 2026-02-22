@@ -2,6 +2,7 @@ import * as queueRepo from '../repositories/queue.repository.js'
 import * as ytdlp from './ytdlp.service.js'
 import { mpvService } from './mpv.service.js'
 import * as speakerRepo from '../repositories/speaker.repository.js'
+import * as settingsService from './settings.service.js'
 import type { QueueItem } from '../types/queue.js'
 
 // Suppress stop-event cleanup while queue/schedule is transitioning tracks
@@ -28,6 +29,14 @@ export function setSuppressStopCleanup(value: boolean): void {
 
 export function setSuppressAutoAdvance(value: boolean): void {
   suppressAutoAdvance = value
+}
+
+function resolveVolume(speakerId: number | null): number {
+  if (speakerId) {
+    const speaker = speakerRepo.findById(speakerId)
+    if (speaker?.default_volume != null) return speaker.default_volume
+  }
+  return settingsService.getDefaultVolume()
 }
 
 export function getAll(speakerId?: number): QueueItem[] {
@@ -152,7 +161,7 @@ export async function playItem(id: number): Promise<QueueItem | null> {
       const speaker = speakerRepo.findById(item.speaker_id)
       if (speaker) {
         if (mpvService.isConnected()) await mpvService.stop()
-        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name)
+        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name, resolveVolume(item.speaker_id))
       }
     }
 
@@ -184,7 +193,7 @@ export async function resumePaused(): Promise<QueueItem | null> {
       const speaker = speakerRepo.findById(paused.speaker_id)
       if (speaker) {
         if (mpvService.isConnected()) await mpvService.stop()
-        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name)
+        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name, resolveVolume(paused.speaker_id))
       }
     }
 
@@ -222,7 +231,7 @@ export async function playNext(): Promise<QueueItem | null> {
       const speaker = speakerRepo.findById(next.speaker_id)
       if (speaker) {
         if (mpvService.isConnected()) await mpvService.stop()
-        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name)
+        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name, resolveVolume(next.speaker_id))
       }
     }
 

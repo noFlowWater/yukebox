@@ -83,6 +83,7 @@ export interface Speaker {
   sink_name: string
   display_name: string
   is_default: boolean
+  default_volume: number | null
   online: boolean
   state: string
   active: boolean

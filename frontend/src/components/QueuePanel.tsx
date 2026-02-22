@@ -9,12 +9,14 @@ import Image from 'next/image'
 import { formatDuration, handleApiError } from '@/lib/utils'
 import * as api from '@/lib/api'
 import { useSpeaker } from '@/contexts/SpeakerContext'
+import { useStatus } from '@/contexts/StatusContext'
 import type { QueueItem } from '@/types'
 
 const POLL_INTERVAL = 3000
 
 export function QueuePanel() {
   const { activeSpeakerId } = useSpeaker()
+  const { status: playbackStatus } = useStatus()
   const [queue, setQueue] = useState<QueueItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
@@ -205,8 +207,9 @@ export function QueuePanel() {
       <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden">
         <ul className="flex flex-col gap-1">
           {queue.map((item, index) => {
-            const isPlaying = item.status === 'playing'
-            const isPaused = item.status === 'paused'
+            const isActive = item.status === 'playing'
+            const isPlaying = isActive && !playbackStatus.paused
+            const isPaused = item.status === 'paused' || (isActive && playbackStatus.paused)
 
             return (
               <li

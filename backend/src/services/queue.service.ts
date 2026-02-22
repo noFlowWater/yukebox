@@ -155,7 +155,7 @@ export async function playItem(id: number): Promise<QueueItem | null> {
   queueRepo.removePlaying()
   queueRepo.markPlaying(id)
 
-  suppressStopCleanup = true
+  setSuppressStopCleanup(true)
   try {
     if (item.speaker_id && item.speaker_id !== mpvService.getActiveSpeakerId()) {
       const speaker = speakerRepo.findById(item.speaker_id)
@@ -171,7 +171,7 @@ export async function playItem(id: number): Promise<QueueItem | null> {
     // Play failed — remove the item
     queueRepo.remove(id)
   } finally {
-    suppressStopCleanup = false
+    setSuppressStopCleanup(false)
   }
 
   return item
@@ -187,7 +187,7 @@ export async function resumePaused(): Promise<QueueItem | null> {
 
   queueRepo.markPlaying(paused.id)
 
-  suppressStopCleanup = true
+  setSuppressStopCleanup(true)
   try {
     if (paused.speaker_id && paused.speaker_id !== mpvService.getActiveSpeakerId()) {
       const speaker = speakerRepo.findById(paused.speaker_id)
@@ -202,7 +202,7 @@ export async function resumePaused(): Promise<QueueItem | null> {
   } catch {
     queueRepo.remove(paused.id)
   } finally {
-    suppressStopCleanup = false
+    setSuppressStopCleanup(false)
   }
 
   return paused
@@ -224,7 +224,7 @@ export async function playNext(): Promise<QueueItem | null> {
   // Mark as playing
   queueRepo.markPlaying(next.id)
 
-  suppressStopCleanup = true
+  setSuppressStopCleanup(true)
   try {
     // Switch speaker if queue item targets a different one
     if (next.speaker_id && next.speaker_id !== mpvService.getActiveSpeakerId()) {
@@ -241,7 +241,7 @@ export async function playNext(): Promise<QueueItem | null> {
     // If play fails, remove the item
     queueRepo.remove(next.id)
   } finally {
-    suppressStopCleanup = false
+    setSuppressStopCleanup(false)
   }
 
   return next

@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useSpeaker } from '@/contexts/SpeakerContext'
-import { useStatus } from '@/hooks/useStatus'
+import { useStatus } from '@/contexts/StatusContext'
 import { useSpeakerCounts } from '@/hooks/useSpeakerCounts'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'

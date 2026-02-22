@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Toaster } from '@/components/ui/sonner'
 import { AuthProvider } from '@/components/AuthProvider'
 import { SpeakerProvider } from '@/contexts/SpeakerContext'
+import { StatusProvider } from '@/contexts/StatusContext'
 import { AccessibilityProvider } from '@/contexts/AccessibilityContext'
 import './globals.css'
 
@@ -20,9 +21,11 @@ export default function RootLayout({
       <body>
         <AccessibilityProvider>
           <AuthProvider>
-            <SpeakerProvider>
-              {children}
-            </SpeakerProvider>
+            <StatusProvider>
+              <SpeakerProvider>
+                {children}
+              </SpeakerProvider>
+            </StatusProvider>
           </AuthProvider>
         </AccessibilityProvider>
         <Toaster />

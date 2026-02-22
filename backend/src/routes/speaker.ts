@@ -3,6 +3,7 @@ import {
   handleList,
   handleRegister,
   handleRemove,
+  handleRename,
   handleSetDefault,
   handleAvailableSinks,
   handleActivate,
@@ -20,6 +21,7 @@ export async function speakerAdminRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/api/speakers', handleRegister)
   app.delete('/api/speakers/:id', handleRemove)
+  app.patch('/api/speakers/:id', handleRename)
   app.patch('/api/speakers/:id/default', handleSetDefault)
   app.get('/api/speakers/available', handleAvailableSinks)
 }

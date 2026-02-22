@@ -287,6 +287,13 @@ export function registerSpeaker(sink_name: string, display_name: string) {
   })
 }
 
+export function renameSpeaker(id: number, display_name: string) {
+  return request<Speaker>(`/api/speakers/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ display_name }),
+  })
+}
+
 export function removeSpeaker(id: number) {
   return request<{ removed: boolean }>(`/api/speakers/${id}`, {
     method: 'DELETE',

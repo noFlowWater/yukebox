@@ -140,6 +140,33 @@ export async function getDefault(): Promise<SpeakerPublic | null> {
   }
 }
 
+export async function rename(id: number, displayName: string): Promise<SpeakerPublic> {
+  try {
+    const speaker = speakerRepo.findById(id)
+    if (!speaker) {
+      throw new SpeakerError('NOT_FOUND', 'Speaker not found')
+    }
+
+    speakerRepo.update(id, displayName)
+
+    const updated = speakerRepo.findById(id)!
+
+    let sinks: { name: string; state: string }[] = []
+    try {
+      sinks = await pulseService.listSinks()
+    } catch {
+      // pactl unavailable
+    }
+
+    const sink = sinks.find((s) => s.name === updated.sink_name)
+    return toPublicSpeaker(updated, !!sink, sink?.state ?? 'UNAVAILABLE')
+  } catch (err) {
+    if (err instanceof SpeakerError) throw err
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    throw new SpeakerError('RENAME_ERROR', message)
+  }
+}
+
 export async function setDefault(id: number): Promise<SpeakerPublic> {
   try {
     const speaker = speakerRepo.findById(id)

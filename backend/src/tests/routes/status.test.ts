@@ -12,6 +12,14 @@ vi.mock('../../services/mpv.service.js', () => ({
   },
 }))
 
+vi.mock('../../services/queue.service.js', () => ({
+  getAll: vi.fn(() => []),
+}))
+
+vi.mock('../../services/schedule.service.js', () => ({
+  getAll: vi.fn(() => []),
+}))
+
 function buildTestApp() {
   const app = Fastify({ logger: false })
   setupAuth(app)
@@ -55,6 +63,7 @@ describe('GET /api/status', () => {
       volume: 80,
       speaker_id: null,
       speaker_name: null,
+      has_next: false,
     })
 
     const response = await app.inject({
@@ -99,6 +108,7 @@ describe('GET /api/status', () => {
       volume: 75,
       speaker_id: 1,
       speaker_name: 'Living Room',
+      has_next: false,
     })
 
     const response = await app.inject({
@@ -157,6 +167,7 @@ describe('GET /api/status/stream', () => {
       volume: 100,
       speaker_id: null,
       speaker_name: null,
+      has_next: false,
     })
 
     const app = buildTestApp()

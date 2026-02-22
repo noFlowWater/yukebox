@@ -79,12 +79,16 @@
     --border: 0 0% 30%;
   }
 
-  /* Text wrap — show full text in content areas only (excludes portals/overlays) */
-  :root[data-text-wrap="true"] main .truncate,
-  :root[data-text-wrap="true"] [data-player-bar] .truncate {
+  /* Text wrap — show full text in content areas only (excludes portals/overlays/player bar) */
+  :root[data-text-wrap="true"] main .truncate {
     overflow: visible !important;
     text-overflow: clip !important;
     white-space: normal !important;
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
   }
 
   * {
@@ -93,5 +97,11 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .animate-marquee {
+    animation: marquee 25s linear infinite;
   }
 }

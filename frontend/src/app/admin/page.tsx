@@ -263,7 +263,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="max-w-2xl mx-auto px-4 pt-6 flex flex-col gap-6">
+      <main className="max-w-2xl mx-auto px-4 pt-6 pb-6 flex flex-col gap-6">
         <div className="flex items-center gap-3">
           {hasUserCapability && (
             <Button variant="ghost" size="icon" onClick={() => router.push('/')}>

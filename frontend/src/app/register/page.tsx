@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { UserPlus, Loader2 } from 'lucide-react'
+import { UserPlus, Loader2, Github } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -55,7 +55,8 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <Card className="w-full max-w-sm">
+      <div className="w-full max-w-sm flex flex-col items-center">
+      <Card className="w-full">
         <CardHeader className="text-center flex flex-col items-center">
           <Image src="/icon.svg" alt="YukeBox" width={64} height={64} className="mb-2" />
           <CardTitle className="text-2xl font-semibold">YukeBox</CardTitle>
@@ -110,6 +111,16 @@ export default function RegisterPage() {
           </p>
         </CardContent>
       </Card>
+      <a
+        href="https://github.com/noFlowWater/yukebox"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Github className="h-3.5 w-3.5" />
+        noFlowWater/yukebox
+      </a>
+      </div>
     </div>
   )
 }

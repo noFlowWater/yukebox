@@ -195,7 +195,7 @@ export function PlayerBar() {
         step={0.1}
         onValueChange={handleSeekDrag}
         onValueCommit={handleSeekCommit}
-        className="h-1 rounded-none [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:opacity-0 hover:[&_[role=slider]]:opacity-100 [&_[role=slider]]:transition-opacity"
+        className="h-1 rounded-none [&_[role=slider]]:h-3 [&_[role=slider]]:w-3 [&_[role=slider]]:opacity-0 hover:[&_[role=slider]]:opacity-100 [&_[role=slider]]:transition-opacity [&>span:first-child]:rounded-none"
       />
 
       <div className="max-w-2xl mx-auto px-4 py-2 flex items-center gap-3">

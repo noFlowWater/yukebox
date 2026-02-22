@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 5%;
+    --foreground: 0 0% 96%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 96%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 0 0% 5%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 45%;
+    --popover: 0 0% 14%;
+    --popover-foreground: 0 0% 96%;
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 96%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 96%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 96%;
+    --ring: 38 92% 50%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --radius: 0.5rem;
+  }
+
+  /* Light theme */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 5%;
+    --card: 0 0% 97%;
+    --card-foreground: 0 0% 5%;
+    --border: 0 0% 85%;
+    --input: 0 0% 85%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 0 0% 93%;
+    --muted-foreground: 0 0% 40%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 5%;
+    --accent: 0 0% 93%;
+    --accent-foreground: 0 0% 5%;
+    --secondary: 0 0% 93%;
+    --secondary-foreground: 0 0% 5%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --ring: 38 92% 50%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+  }
+
+  /* Text scale */
+  :root[data-text-scale="large"] { font-size: 18px; }
+  :root[data-text-scale="x-large"] { font-size: 20px; }
+
+  /* Reduced motion */
+  :root[data-reduce-motion="true"] *,
+  :root[data-reduce-motion="true"] *::before,
+  :root[data-reduce-motion="true"] *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
+
+  /* High contrast — dark */
+  :root[data-high-contrast="true"] {
+    --foreground: 0 0% 100%;
+    --muted-foreground: 0 0% 65%;
+    --border: 0 0% 35%;
+  }
+
+  /* High contrast — light */
+  .light[data-high-contrast="true"] {
+    --foreground: 0 0% 0%;
+    --muted-foreground: 0 0% 25%;
+    --border: 0 0% 30%;
+  }
+
+  /* Text wrap — show full text in content areas only (excludes portals/overlays) */
+  :root[data-text-wrap="true"] main .truncate,
+  :root[data-text-wrap="true"] [data-player-bar] .truncate {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

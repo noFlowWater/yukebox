@@ -1,0 +1,33 @@
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - BACKEND_PORT=${BACKEND_PORT:-4000}
+      - PULSE_SERVER=unix:/tmp/pulse-native
+      - PULSE_COOKIE=/tmp/pulse-cookie
+      - MPV_SOCKET=${MPV_SOCKET:-/tmp/mpv-socket}
+      - DB_PATH=${DB_PATH:-/app/data/yukebox.db}
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=http://frontend:3000
+    volumes:
+      - ${PULSE_SOCKET:-/run/user/1000/pulse/native}:/tmp/pulse-native
+      - ${PULSE_COOKIE:-/run/user/1000/pulse/cookie}:/tmp/pulse-cookie:ro
+      - backend-data:/app/data
+    group_add:
+      - audio
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - HOSTNAME=0.0.0.0
+      - INTERNAL_API_URL=http://backend:4000
+    depends_on:
+      - backend
+
+volumes:
+  backend-data:

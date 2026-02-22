@@ -1,0 +1,108 @@
+// API response wrapper
+export interface ApiResponse<T> {
+  success: true
+  data: T
+}
+
+export interface ApiErrorResponse {
+  success: false
+  error: {
+    code: string
+    message: string
+  }
+}
+
+// Playback
+export interface PlayResult {
+  title: string
+  url: string
+  thumbnail: string
+  duration: number
+}
+
+export interface PlaybackStatus {
+  playing: boolean
+  paused: boolean
+  title: string
+  url: string
+  duration: number
+  position: number
+  volume: number
+  speaker_id: number | null
+  speaker_name: string | null
+}
+
+// Queue
+export interface QueueItem {
+  id: number
+  url: string
+  title: string
+  thumbnail: string
+  duration: number
+  position: number
+  status: 'pending' | 'playing' | 'paused'
+  paused_position: number | null
+  added_at: string
+  speaker_id: number | null
+}
+
+// Schedule
+export interface Schedule {
+  id: number
+  url: string
+  query: string
+  title: string
+  thumbnail: string
+  duration: number
+  scheduled_at: string
+  status: 'pending' | 'playing' | 'completed' | 'failed'
+  group_id: string | null
+  created_at: string
+  speaker_id: number | null
+}
+
+// User
+export interface User {
+  id: number
+  username: string
+  role: 'admin' | 'user'
+  created_at: string
+}
+
+// Search
+export interface SearchResult {
+  url: string
+  title: string
+  thumbnail: string
+  duration: number
+}
+
+// Speaker
+export interface Speaker {
+  id: number
+  sink_name: string
+  display_name: string
+  is_default: boolean
+  online: boolean
+  state: string
+  active: boolean
+  playing: boolean
+  created_at: string
+}
+
+export interface AvailableSink {
+  sink_name: string
+  description: string
+  state: string
+}
+
+// Favorite
+export interface Favorite {
+  id: number
+  user_id: number
+  url: string
+  title: string
+  thumbnail: string
+  duration: number
+  added_at: string
+}

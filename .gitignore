@@ -1,0 +1,41 @@
+# Environment
+.env
+frontend/.env.local
+
+# Internal docs (local development only)
+CLAUDE.md
+prd.md
+dev.md
+tasks.md
+design-scheme.md
+api-spec.md
+checklist.md
+
+# Claude Code
+.claude/
+
+# Dependencies
+node_modules/
+
+# Build output
+backend/dist/
+frontend/.next/
+frontend/out/
+*.tsbuildinfo
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Test artifacts
+test-results/
+playwright-report/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

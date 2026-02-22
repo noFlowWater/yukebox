@@ -14,9 +14,10 @@ import type { Schedule } from '@/types'
 
 const POLL_INTERVAL = 3000
 
-const STATUS_CONFIG: Record<Schedule['status'], { label: string; className: string }> = {
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   pending: { label: 'pending', className: 'bg-primary/20 text-primary' },
   playing: { label: 'playing', className: 'bg-success/20 text-success' },
+  paused: { label: 'paused', className: 'bg-warning/20 text-warning' },
   completed: { label: 'completed', className: 'bg-muted text-muted-foreground' },
   failed: { label: 'failed', className: 'bg-destructive/20 text-destructive' },
 }
@@ -119,12 +120,12 @@ export function SchedulePanel() {
         <ul className="flex flex-col gap-2">
           {schedules.map((schedule) => {
             // Derive effective status from SSE playback state
-            let effectiveStatus = schedule.status
+            let effectiveStatus: string = schedule.status
             if (schedule.status === 'playing') {
               if (!playbackStatus.playing && !playbackStatus.paused) {
                 effectiveStatus = 'completed'
               } else if (playbackStatus.paused) {
-                effectiveStatus = 'playing' // still active, just paused
+                effectiveStatus = 'paused'
               }
             }
             const config = STATUS_CONFIG[effectiveStatus]

@@ -93,9 +93,30 @@ describe('db', () => {
     expect(tables).toHaveLength(1)
   })
 
-  it('should set schema_version to 6', () => {
+  it('should add default_volume column to speakers table', () => {
+    const db = getDb()
+    const columns = db.prepare('PRAGMA table_info(speakers)').all() as { name: string }[]
+    const col = columns.find((c) => c.name === 'default_volume')
+    expect(col).toBeDefined()
+  })
+
+  it('should create settings table', () => {
+    const db = getDb()
+    const tables = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'"
+    ).all()
+    expect(tables).toHaveLength(1)
+  })
+
+  it('should seed default_volume setting to 60', () => {
+    const db = getDb()
+    const row = db.prepare("SELECT value FROM settings WHERE key = 'default_volume'").get() as { value: string }
+    expect(row.value).toBe('60')
+  })
+
+  it('should set schema_version to 7', () => {
     const db = getDb()
     const row = db.prepare('SELECT version FROM schema_version').get() as { version: number }
-    expect(row.version).toBe(6)
+    expect(row.version).toBe(7)
   })
 })

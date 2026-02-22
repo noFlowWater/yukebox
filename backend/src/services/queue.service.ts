@@ -2,6 +2,7 @@ import * as queueRepo from '../repositories/queue.repository.js'
 import * as ytdlp from './ytdlp.service.js'
 import { mpvService } from './mpv.service.js'
 import * as speakerRepo from '../repositories/speaker.repository.js'
+import * as settingsService from './settings.service.js'
 import type { QueueItem } from '../types/queue.js'
 
 // Suppress stop-event cleanup while queue/schedule is transitioning tracks
@@ -28,6 +29,14 @@ export function setSuppressStopCleanup(value: boolean): void {
 
 export function setSuppressAutoAdvance(value: boolean): void {
   suppressAutoAdvance = value
+}
+
+function resolveVolume(speakerId: number | null): number {
+  if (speakerId) {
+    const speaker = speakerRepo.findById(speakerId)
+    if (speaker?.default_volume != null) return speaker.default_volume
+  }
+  return settingsService.getDefaultVolume()
 }
 
 export function getAll(speakerId?: number): QueueItem[] {
@@ -152,12 +161,12 @@ export async function playItem(id: number): Promise<QueueItem | null> {
       const speaker = speakerRepo.findById(item.speaker_id)
       if (speaker) {
         if (mpvService.isConnected()) await mpvService.stop()
-        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name)
+        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name, resolveVolume(item.speaker_id))
       }
     }
 
     const track = await ytdlp.resolve(item.url)
-    await mpvService.play(track.audioUrl, track.title)
+    await mpvService.play(track.audioUrl, track.title, undefined, resolveVolume(item.speaker_id))
   } catch {
     // Play failed — remove the item
     queueRepo.remove(id)
@@ -184,12 +193,12 @@ export async function resumePaused(): Promise<QueueItem | null> {
       const speaker = speakerRepo.findById(paused.speaker_id)
       if (speaker) {
         if (mpvService.isConnected()) await mpvService.stop()
-        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name)
+        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name, resolveVolume(paused.speaker_id))
       }
     }
 
     const track = await ytdlp.resolve(paused.url)
-    await mpvService.play(track.audioUrl, paused.title, paused.paused_position ?? undefined)
+    await mpvService.play(track.audioUrl, paused.title, paused.paused_position ?? undefined, resolveVolume(paused.speaker_id))
   } catch {
     queueRepo.remove(paused.id)
   } finally {
@@ -222,12 +231,12 @@ export async function playNext(): Promise<QueueItem | null> {
       const speaker = speakerRepo.findById(next.speaker_id)
       if (speaker) {
         if (mpvService.isConnected()) await mpvService.stop()
-        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name)
+        mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name, resolveVolume(next.speaker_id))
       }
     }
 
     const track = await ytdlp.resolve(next.url)
-    await mpvService.play(track.audioUrl, track.title)
+    await mpvService.play(track.audioUrl, track.title, undefined, resolveVolume(next.speaker_id))
   } catch {
     // If play fails, remove the item
     queueRepo.remove(next.id)

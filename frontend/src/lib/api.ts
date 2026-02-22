@@ -312,6 +312,26 @@ export function activateSpeaker(id: number) {
   })
 }
 
+export function updateSpeakerVolume(id: number, default_volume: number | null) {
+  return request<Speaker>(`/api/speakers/${id}/volume`, {
+    method: 'PATCH',
+    body: JSON.stringify({ default_volume }),
+  })
+}
+
+// --- Settings ---
+
+export function getSettings() {
+  return request<{ default_volume: number }>('/api/settings')
+}
+
+export function updateSettings(body: { default_volume: number }) {
+  return request<{ default_volume: number }>('/api/settings', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
 // --- Favorites ---
 
 export function getFavorites() {

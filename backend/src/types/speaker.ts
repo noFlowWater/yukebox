@@ -3,6 +3,7 @@ export interface Speaker {
   sink_name: string
   display_name: string
   is_default: number
+  default_volume: number | null
   created_at: string
 }
 
@@ -11,6 +12,7 @@ export interface SpeakerPublic {
   sink_name: string
   display_name: string
   is_default: boolean
+  default_volume: number | null
   online: boolean
   state: string
   active: boolean
@@ -42,6 +44,7 @@ export function toPublicSpeaker(speaker: Speaker, online: boolean, state: string
     sink_name: speaker.sink_name,
     display_name: speaker.display_name,
     is_default: speaker.is_default === 1,
+    default_volume: speaker.default_volume,
     online,
     state,
     active,

@@ -5,13 +5,15 @@ import { setupAutoAdvance } from './services/queue.service.js'
 import { startScheduler, stopScheduler } from './services/schedule.service.js'
 import { closeDb } from './repositories/db.js'
 import * as speakerRepo from './repositories/speaker.repository.js'
+import * as settingsService from './services/settings.service.js'
 
 const app = buildApp()
 
 try {
   const defaultSpeaker = speakerRepo.findDefault()
   if (defaultSpeaker) {
-    mpvService.setActiveSpeaker(defaultSpeaker.id, defaultSpeaker.sink_name, defaultSpeaker.display_name)
+    const volume = defaultSpeaker.default_volume ?? settingsService.getDefaultVolume()
+    mpvService.setActiveSpeaker(defaultSpeaker.id, defaultSpeaker.sink_name, defaultSpeaker.display_name, volume)
   }
   setupAutoAdvance()
   startScheduler()

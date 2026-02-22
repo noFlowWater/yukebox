@@ -17,7 +17,7 @@ export const EMPTY_STATUS: MpvStatus = {
   url: '',
   duration: 0,
   position: 0,
-  volume: 100,
+  volume: 60,
   speaker_id: null,
   speaker_name: null,
 }

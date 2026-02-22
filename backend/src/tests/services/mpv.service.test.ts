@@ -22,7 +22,7 @@ describe('mpv types', () => {
       url: '',
       duration: 0,
       position: 0,
-      volume: 100,
+      volume: 60,
       speaker_id: null,
       speaker_name: null,
     })
@@ -128,6 +128,65 @@ describe('mpvService', () => {
     expect(spawnArgs).toContain('--audio-device=pulse/bluez_sink.bt_speaker')
 
     // cleanup without rejecting pending (just kill process ref)
+    vi.mocked(spawn).mockClear()
+  })
+
+  it('should pass --volume arg with default volume when starting', async () => {
+    vi.clearAllMocks()
+    const { spawn } = await import('node:child_process')
+    const mockProcess = {
+      on: vi.fn(),
+      kill: vi.fn(),
+    }
+    vi.mocked(spawn).mockReturnValue(mockProcess as unknown as ReturnType<typeof spawn>)
+
+    const { connect } = await import('node:net')
+    const mockSocket = {
+      on: vi.fn((event: string, cb: (...args: unknown[]) => void) => {
+        if (event === 'connect') setTimeout(cb, 5)
+        return mockSocket
+      }),
+      destroy: vi.fn(),
+      write: vi.fn(),
+    }
+    vi.mocked(connect).mockReturnValue(mockSocket as unknown as ReturnType<typeof connect>)
+
+    const { mpvService } = await import('../../services/mpv.service.js')
+    await mpvService.start()
+
+    const spawnArgs = vi.mocked(spawn).mock.calls[0][1] as string[]
+    expect(spawnArgs).toContain('--volume=60')
+
+    vi.mocked(spawn).mockClear()
+  })
+
+  it('should use custom default volume set via setActiveSpeaker', async () => {
+    vi.clearAllMocks()
+    const { spawn } = await import('node:child_process')
+    const mockProcess = {
+      on: vi.fn(),
+      kill: vi.fn(),
+    }
+    vi.mocked(spawn).mockReturnValue(mockProcess as unknown as ReturnType<typeof spawn>)
+
+    const { connect } = await import('node:net')
+    const mockSocket = {
+      on: vi.fn((event: string, cb: (...args: unknown[]) => void) => {
+        if (event === 'connect') setTimeout(cb, 5)
+        return mockSocket
+      }),
+      destroy: vi.fn(),
+      write: vi.fn(),
+    }
+    vi.mocked(connect).mockReturnValue(mockSocket as unknown as ReturnType<typeof connect>)
+
+    const { mpvService } = await import('../../services/mpv.service.js')
+    mpvService.setActiveSpeaker(1, 'test_sink', 'Test', 42)
+    await mpvService.start('test_sink')
+
+    const spawnArgs = vi.mocked(spawn).mock.calls[0][1] as string[]
+    expect(spawnArgs).toContain('--volume=42')
+
     vi.mocked(spawn).mockClear()
   })
 

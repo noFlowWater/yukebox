@@ -19,6 +19,7 @@ class MpvService extends EventEmitter {
   private activeSpeakerId: number | null = null
   private activeSpeakerName: string | null = null
   private trackTitle: string | null = null
+  private defaultVolume = 60
 
   async start(sinkName?: string): Promise<void> {
     if (this.process) return
@@ -31,6 +32,8 @@ class MpvService extends EventEmitter {
       '--no-terminal',
       `--input-ipc-server=${config.mpvSocket}`,
     ]
+
+    args.push(`--volume=${this.defaultVolume}`)
 
     if (this.sinkName) {
       args.push(`--audio-device=pulse/${this.sinkName}`)
@@ -192,7 +195,10 @@ class MpvService extends EventEmitter {
     })
   }
 
-  async play(url: string, title?: string, startPosition?: number): Promise<void> {
+  async play(url: string, title?: string, startPosition?: number, volume?: number): Promise<void> {
+    if (volume !== undefined) {
+      this.defaultVolume = volume
+    }
     if (!this.process) {
       await this.start(this.sinkName ?? undefined)
     }
@@ -201,6 +207,9 @@ class MpvService extends EventEmitter {
     } else {
       await this.command('loadfile', url, 'replace')
     }
+    // Apply default volume on every new track
+    await this.setProperty('volume', this.defaultVolume)
+    this.status.volume = this.defaultVolume
     this.status.playing = true
     this.status.paused = false
     this.status.url = url
@@ -245,7 +254,7 @@ class MpvService extends EventEmitter {
         this.getProperty('media-title').catch(() => ''),
         this.getProperty('duration').catch(() => 0),
         this.getProperty('time-pos').catch(() => 0),
-        this.getProperty('volume').catch(() => 100),
+        this.getProperty('volume').catch(() => 60),
         this.getProperty('path').catch(() => ''),
         this.getProperty('idle-active').catch(() => true),
       ])
@@ -259,7 +268,7 @@ class MpvService extends EventEmitter {
         url: isPlaying ? ((path as string) || '') : '',
         duration: isPlaying ? ((duration as number) || 0) : 0,
         position: isPlaying ? ((position as number) || 0) : 0,
-        volume: (volume as number) || 100,
+        volume: (volume as number) || 60,
         speaker_id: this.activeSpeakerId,
         speaker_name: this.activeSpeakerName,
       }
@@ -278,10 +287,13 @@ class MpvService extends EventEmitter {
     return this.command('set_property', name, value)
   }
 
-  setActiveSpeaker(speakerId: number, sinkName: string, displayName: string): void {
+  setActiveSpeaker(speakerId: number, sinkName: string, displayName: string, defaultVolume?: number): void {
     this.activeSpeakerId = speakerId
     this.sinkName = sinkName
     this.activeSpeakerName = displayName
+    if (defaultVolume !== undefined) {
+      this.defaultVolume = defaultVolume
+    }
   }
 
   getActiveSpeakerId(): number | null {

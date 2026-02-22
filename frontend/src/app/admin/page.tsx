@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Trash2, Shield, User as UserIcon, ArrowLeft, Loader2, Speaker, Wifi, WifiOff, Star, Plus, MoreVertical, Pencil } from 'lucide-react'
+import { Trash2, Shield, User as UserIcon, ArrowLeft, Loader2, Speaker, Wifi, WifiOff, Star, Plus, MoreVertical, Pencil, Volume2, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { handleApiError } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
+import { Slider } from '@/components/ui/slider'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,6 +78,18 @@ export default function AdminPage() {
   const [renamingId, setRenamingId] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState('')
 
+  // Global settings state
+  const [globalVolume, setGlobalVolume] = useState(60)
+  const [globalVolumeSaved, setGlobalVolumeSaved] = useState(60)
+  const [settingsLoading, setSettingsLoading] = useState(true)
+
+  // Speaker volume dialog state
+  const [volumeOpen, setVolumeOpen] = useState(false)
+  const [volumeSpeakerId, setVolumeSpeakerId] = useState<number | null>(null)
+  const [volumeSpeakerName, setVolumeSpeakerName] = useState('')
+  const [volumeValue, setVolumeValue] = useState(60)
+  const [volumeUseGlobal, setVolumeUseGlobal] = useState(true)
+
   const fetchUsers = useCallback(async () => {
     try {
       const data = await api.getUsers()
@@ -102,6 +116,18 @@ export default function AdminPage() {
     }
   }, [])
 
+  const fetchSettings = useCallback(async () => {
+    try {
+      const data = await api.getSettings()
+      setGlobalVolume(data.default_volume)
+      setGlobalVolumeSaved(data.default_volume)
+    } catch (err) {
+      handleApiError(err, 'Failed to load settings')
+    } finally {
+      setSettingsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (authLoading) return
     if (!currentUser || currentUser.role !== 'admin') {
@@ -110,7 +136,8 @@ export default function AdminPage() {
     }
     fetchUsers()
     fetchSpeakers()
-  }, [authLoading, currentUser, router, fetchUsers, fetchSpeakers])
+    fetchSettings()
+  }, [authLoading, currentUser, router, fetchUsers, fetchSpeakers, fetchSettings])
 
   async function handleDelete(userId: number, username: string) {
     if (!confirm(`Delete user "${username}"?`)) return
@@ -191,6 +218,39 @@ export default function AdminPage() {
     }
   }
 
+  async function handleSaveGlobalVolume() {
+    try {
+      await api.updateSettings({ default_volume: globalVolume })
+      setGlobalVolumeSaved(globalVolume)
+      toast.success('Default volume saved')
+    } catch (err) {
+      handleApiError(err, 'Failed to save settings')
+    }
+  }
+
+  function startVolumeEdit(speaker: SpeakerType) {
+    setVolumeSpeakerId(speaker.id)
+    setVolumeSpeakerName(speaker.display_name)
+    const useGlobal = speaker.default_volume === null
+    setVolumeUseGlobal(useGlobal)
+    setVolumeValue(speaker.default_volume ?? globalVolumeSaved)
+    setVolumeOpen(true)
+  }
+
+  async function submitVolume() {
+    if (volumeSpeakerId === null) return
+    try {
+      const newVolume = volumeUseGlobal ? null : volumeValue
+      await api.updateSpeakerVolume(volumeSpeakerId, newVolume)
+      toast.success('Speaker volume updated')
+      setVolumeOpen(false)
+      await fetchSpeakers()
+      await refreshSpeakers()
+    } catch (err) {
+      handleApiError(err, 'Failed to update speaker volume')
+    }
+  }
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -203,7 +263,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="max-w-2xl mx-auto px-4 pt-6 flex flex-col gap-6">
+      <main className="max-w-2xl mx-auto px-4 pt-6 pb-6 flex flex-col gap-6">
         <div className="flex items-center gap-3">
           {hasUserCapability && (
             <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
@@ -212,6 +272,45 @@ export default function AdminPage() {
           )}
           <h1 className="text-2xl font-semibold">Administration</h1>
         </div>
+
+        {/* Global Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Global Settings
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {settingsLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Default Volume</span>
+                  <span className="text-sm text-muted-foreground">{globalVolume}</span>
+                </div>
+                <Slider
+                  value={[globalVolume]}
+                  onValueChange={([v]) => setGlobalVolume(v)}
+                  min={0}
+                  max={100}
+                  step={1}
+                />
+                <Button
+                  onClick={handleSaveGlobalVolume}
+                  disabled={globalVolume === globalVolumeSaved}
+                  className="self-end"
+                  size="sm"
+                >
+                  Save
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -319,6 +418,10 @@ export default function AdminPage() {
                             <Pencil className="h-4 w-4 mr-2" />
                             Rename
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => startVolumeEdit(s)}>
+                            <Volume2 className="h-4 w-4 mr-2" />
+                            Set Volume
+                          </DropdownMenuItem>
                           {!s.is_default && (
                             <DropdownMenuItem onClick={() => handleSetDefault(s.id)}>
                               <Star className="h-4 w-4 mr-2" />
@@ -407,6 +510,53 @@ export default function AdminPage() {
                 Cancel
               </Button>
               <Button onClick={submitRename} disabled={!renameValue.trim()}>
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {/* Speaker Volume Dialog */}
+        <Dialog open={volumeOpen} onOpenChange={setVolumeOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Set Volume — {volumeSpeakerName}</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="use-global"
+                  checked={volumeUseGlobal}
+                  onCheckedChange={(checked) => {
+                    setVolumeUseGlobal(checked === true)
+                    if (checked) setVolumeValue(globalVolumeSaved)
+                  }}
+                />
+                <label htmlFor="use-global" className="text-sm cursor-pointer">
+                  Use global default ({globalVolumeSaved})
+                </label>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Volume</span>
+                  <span className="text-sm text-muted-foreground">{volumeUseGlobal ? globalVolumeSaved : volumeValue}</span>
+                </div>
+                <Slider
+                  value={[volumeUseGlobal ? globalVolumeSaved : volumeValue]}
+                  onValueChange={([v]) => {
+                    if (!volumeUseGlobal) setVolumeValue(v)
+                  }}
+                  min={0}
+                  max={100}
+                  step={1}
+                  disabled={volumeUseGlobal}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setVolumeOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={submitVolume}>
                 Save
               </Button>
             </DialogFooter>

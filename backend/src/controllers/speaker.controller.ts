@@ -1,7 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import * as speakerService from '../services/speaker.service.js'
 import { SpeakerError } from '../services/speaker.service.js'
-import { registerSpeakerSchema, updateSpeakerSchema } from '../validators/speaker.validator.js'
+import { registerSpeakerSchema, updateSpeakerSchema, updateSpeakerVolumeSchema } from '../validators/speaker.validator.js'
 import { ok, fail } from '../types/api.js'
 
 export async function handleList(
@@ -135,6 +135,36 @@ export async function handleRename(
     }
 
     const speaker = await speakerService.rename(id, parsed.data.display_name)
+    reply.status(200).send(ok(speaker))
+  } catch (err) {
+    if (err instanceof SpeakerError && err.code === 'NOT_FOUND') {
+      reply.status(404).send(fail('NOT_FOUND', err.message))
+      return
+    }
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    reply.status(500).send(fail('SPEAKER_ERROR', message))
+  }
+}
+
+export async function handleUpdateVolume(
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+): Promise<void> {
+  try {
+    const id = Number(request.params.id)
+    if (isNaN(id) || id <= 0) {
+      reply.status(400).send(fail('VALIDATION_ERROR', 'Invalid speaker ID'))
+      return
+    }
+
+    const parsed = updateSpeakerVolumeSchema.safeParse(request.body)
+    if (!parsed.success) {
+      const messages = parsed.error.errors.map((e) => `${e.path.join('.') || 'body'}: ${e.message}`)
+      reply.status(400).send(fail('VALIDATION_ERROR', messages.join('; ')))
+      return
+    }
+
+    const speaker = await speakerService.updateDefaultVolume(id, parsed.data.default_volume)
     reply.status(200).send(ok(speaker))
   } catch (err) {
     if (err instanceof SpeakerError && err.code === 'NOT_FOUND') {

@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { formatDatetime, formatDuration, getRelativeTime, handleApiError } from '@/lib/utils'
 import * as api from '@/lib/api'
 import { useSpeaker } from '@/contexts/SpeakerContext'
+import { useStatus } from '@/contexts/StatusContext'
 import { useAccessibility } from '@/contexts/AccessibilityContext'
 import type { Schedule } from '@/types'
 
@@ -22,6 +23,7 @@ const STATUS_CONFIG: Record<Schedule['status'], { label: string; className: stri
 
 export function SchedulePanel() {
   const { activeSpeakerId } = useSpeaker()
+  const { status: playbackStatus } = useStatus()
   const { timezone } = useAccessibility()
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -116,7 +118,16 @@ export function SchedulePanel() {
       <div className="max-h-[50vh] overflow-y-auto">
         <ul className="flex flex-col gap-2">
           {schedules.map((schedule) => {
-            const config = STATUS_CONFIG[schedule.status]
+            // Derive effective status from SSE playback state
+            let effectiveStatus = schedule.status
+            if (schedule.status === 'playing') {
+              if (!playbackStatus.playing && !playbackStatus.paused) {
+                effectiveStatus = 'completed'
+              } else if (playbackStatus.paused) {
+                effectiveStatus = 'playing' // still active, just paused
+              }
+            }
+            const config = STATUS_CONFIG[effectiveStatus]
             const relTime = schedule.status === 'pending'
               ? getRelativeTime(schedule.scheduled_at)
               : null

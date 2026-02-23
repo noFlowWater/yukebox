@@ -114,9 +114,16 @@ describe('db', () => {
     expect(row.value).toBe('60')
   })
 
-  it('should set schema_version to 7', () => {
+  it('should add schedule_id column to queue table', () => {
+    const db = getDb()
+    const columns = db.prepare('PRAGMA table_info(queue)').all() as { name: string }[]
+    const col = columns.find((c) => c.name === 'schedule_id')
+    expect(col).toBeDefined()
+  })
+
+  it('should set schema_version to 8', () => {
     const db = getDb()
     const row = db.prepare('SELECT version FROM schema_version').get() as { version: number }
-    expect(row.version).toBe(7)
+    expect(row.version).toBe(8)
   })
 })

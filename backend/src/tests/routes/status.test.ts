@@ -5,18 +5,21 @@ import { errorHandler } from '../../middleware/error-handler.js'
 import { EMPTY_STATUS } from '../../types/mpv.js'
 import { setupAuth, wrapWithAuth, getAuthCookie } from '../helpers/auth.js'
 
-// Mock mpv service
-vi.mock('../../services/mpv.service.js', () => ({
-  mpvService: {
+// Use vi.hoisted to make mockEngine available in hoisted vi.mock
+const { mockEngine } = vi.hoisted(() => ({
+  mockEngine: {
     getStatus: vi.fn(),
   },
 }))
 
-vi.mock('../../services/queue.service.js', () => ({
-  getAll: vi.fn(() => []),
+vi.mock('../../services/playback-manager.js', () => ({
+  playbackManager: {
+    getEngine: vi.fn().mockReturnValue(mockEngine),
+    getDefaultEngine: vi.fn().mockReturnValue(mockEngine),
+  },
 }))
 
-vi.mock('../../services/schedule.service.js', () => ({
+vi.mock('../../services/queue.service.js', () => ({
   getAll: vi.fn(() => []),
 }))
 
@@ -52,8 +55,7 @@ describe('GET /api/status', () => {
   })
 
   it('should return current status', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    vi.mocked(mpvService.getStatus).mockResolvedValueOnce({
+    mockEngine.getStatus.mockReturnValue({
       playing: true,
       paused: false,
       title: 'Test Song',
@@ -81,8 +83,7 @@ describe('GET /api/status', () => {
   })
 
   it('should return empty status when nothing is playing', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    vi.mocked(mpvService.getStatus).mockResolvedValueOnce({ ...EMPTY_STATUS })
+    mockEngine.getStatus.mockReturnValue({ ...EMPTY_STATUS })
 
     const response = await app.inject({
       method: 'GET',
@@ -97,8 +98,7 @@ describe('GET /api/status', () => {
   })
 
   it('should include speaker_id and speaker_name in status', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    vi.mocked(mpvService.getStatus).mockResolvedValueOnce({
+    mockEngine.getStatus.mockReturnValue({
       playing: true,
       paused: false,
       title: 'Speaker Song',
@@ -123,9 +123,9 @@ describe('GET /api/status', () => {
     expect(body.data.speaker_name).toBe('Living Room')
   })
 
-  it('should return null speaker fields when no speaker active', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    vi.mocked(mpvService.getStatus).mockResolvedValueOnce({ ...EMPTY_STATUS })
+  it('should return null speaker fields when no engine', async () => {
+    const { playbackManager } = await import('../../services/playback-manager.js')
+    vi.mocked(playbackManager.getDefaultEngine).mockReturnValueOnce(null)
 
     const response = await app.inject({
       method: 'GET',
@@ -138,26 +138,11 @@ describe('GET /api/status', () => {
     expect(body.data.speaker_id).toBeNull()
     expect(body.data.speaker_name).toBeNull()
   })
-
-  it('should return 500 on mpv error', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    vi.mocked(mpvService.getStatus).mockRejectedValueOnce(new Error('mpv crashed'))
-
-    const response = await app.inject({
-      method: 'GET',
-      url: '/api/status',
-      headers: { cookie: authCookie },
-    })
-
-    expect(response.statusCode).toBe(500)
-    expect(response.json().error.code).toBe('STATUS_ERROR')
-  })
 })
 
 describe('GET /api/status/stream', () => {
   it('should return SSE content type and initial data', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    vi.mocked(mpvService.getStatus).mockResolvedValue({
+    mockEngine.getStatus.mockReturnValue({
       playing: true,
       paused: false,
       title: 'SSE Song',

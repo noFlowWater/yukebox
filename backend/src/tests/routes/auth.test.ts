@@ -5,9 +5,13 @@ import authRoutes from '../../routes/auth.js'
 import { errorHandler } from '../../middleware/error-handler.js'
 import { closeDb } from '../../repositories/db.js'
 
-// Mock mpv (not needed for auth but db.ts initializes all schemas)
-vi.mock('../../services/mpv.service.js', () => ({
-  mpvService: { play: vi.fn(), on: vi.fn() },
+// Mock playback-manager (not needed for auth but prevents import issues)
+vi.mock('../../services/playback-manager.js', () => ({
+  playbackManager: {
+    getEngine: vi.fn().mockReturnValue(null),
+    getDefaultEngine: vi.fn().mockReturnValue(null),
+    getOrCreateEngine: vi.fn().mockReturnValue(null),
+  },
 }))
 
 function buildTestApp() {

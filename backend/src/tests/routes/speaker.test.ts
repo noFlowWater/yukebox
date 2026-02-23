@@ -7,16 +7,16 @@ import { errorHandler } from '../../middleware/error-handler.js'
 import { closeDb } from '../../repositories/db.js'
 import { getAuthCookie, createTestUserInDb } from '../helpers/auth.js'
 
-// Mock mpv (needed because getDb triggers initSchema which other modules may reference)
-vi.mock('../../services/mpv.service.js', () => ({
-  mpvService: {
-    play: vi.fn(),
-    on: vi.fn(),
-    isConnected: vi.fn().mockReturnValue(false),
-    getActiveSpeakerId: vi.fn().mockReturnValue(null),
-    getStatus: vi.fn().mockResolvedValue(null),
-    stop: vi.fn(),
-    setActiveSpeaker: vi.fn(),
+// Mock playback-manager
+vi.mock('../../services/playback-manager.js', () => ({
+  playbackManager: {
+    getEngine: vi.fn().mockReturnValue(null),
+    getDefaultEngine: vi.fn().mockReturnValue(null),
+    getOrCreateEngine: vi.fn().mockReturnValue({
+      getStatus: () => ({ playing: false }),
+    }),
+    destroyEngine: vi.fn().mockResolvedValue(undefined),
+    init: vi.fn().mockResolvedValue(undefined),
   },
 }))
 

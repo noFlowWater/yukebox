@@ -34,8 +34,12 @@ export async function handleCreateSchedule(
       return
     }
 
-    const schedule = scheduleService.create(parsed.data)
-    reply.status(201).send(ok(schedule))
+    const { schedule, warning } = scheduleService.create(parsed.data)
+    const response: Record<string, unknown> = { success: true, data: schedule }
+    if (warning) {
+      response.warning = warning
+    }
+    reply.status(201).send(response)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     reply.status(500).send(fail('SCHEDULE_CREATE_ERROR', message))

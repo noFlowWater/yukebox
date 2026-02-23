@@ -31,3 +31,5 @@ export interface MpvIpcResponse {
   event?: string
   reason?: string
 }
+
+export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused'

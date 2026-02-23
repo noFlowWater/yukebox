@@ -168,4 +168,11 @@ function runMigrations(db: Database.Database): void {
       db.prepare('UPDATE schema_version SET version = ?').run(7)
     })()
   }
+
+  if (version < 8) {
+    db.transaction(() => {
+      db.exec(`ALTER TABLE queue ADD COLUMN schedule_id INTEGER REFERENCES schedules(id) ON DELETE SET NULL`)
+      db.prepare('UPDATE schema_version SET version = ?').run(8)
+    })()
+  }
 }

@@ -11,14 +11,12 @@ vi.mock('../../services/ytdlp.service.js', () => ({
   search: vi.fn(),
 }))
 
-vi.mock('../../services/mpv.service.js', () => ({
-  mpvService: {
-    play: vi.fn(),
-    on: vi.fn(),
-    isConnected: vi.fn().mockReturnValue(false),
-    getActiveSpeakerId: vi.fn().mockReturnValue(null),
-    stop: vi.fn(),
-    setActiveSpeaker: vi.fn(),
+// Mock playback-manager
+vi.mock('../../services/playback-manager.js', () => ({
+  playbackManager: {
+    getEngine: vi.fn().mockReturnValue(null),
+    getDefaultEngine: vi.fn().mockReturnValue(null),
+    getOrCreateEngine: vi.fn().mockReturnValue(null),
   },
 }))
 

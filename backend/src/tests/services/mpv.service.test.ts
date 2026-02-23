@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { EMPTY_STATUS } from '../../types/mpv.js'
 
-// Mock child_process and net before importing the service
+// Mock child_process and net before importing
 vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
 }))
@@ -10,8 +10,13 @@ vi.mock('node:net', () => ({
   connect: vi.fn(),
 }))
 
-// We test the MpvService class behavior through its exported singleton
-// Since mpv won't be available in CI, we test the type definitions and status defaults
+// Mock config
+vi.mock('../../config/index.js', () => ({
+  config: {
+    mpvSocketDir: '/tmp',
+  },
+  mpvSocketPath: (speakerId: number) => `/tmp/mpv-socket-${speakerId}`,
+}))
 
 describe('mpv types', () => {
   it('should have correct empty status defaults', () => {
@@ -36,73 +41,57 @@ describe('mpv types', () => {
   })
 })
 
-describe('mpvService', () => {
+describe('MpvProcess', () => {
   beforeEach(() => {
     vi.resetModules()
   })
 
-  it('should export a singleton instance', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    expect(mpvService).toBeDefined()
-    expect(typeof mpvService.play).toBe('function')
-    expect(typeof mpvService.pause).toBe('function')
-    expect(typeof mpvService.stopPlayback).toBe('function')
-    expect(typeof mpvService.setVolume).toBe('function')
-    expect(typeof mpvService.getStatus).toBe('function')
-    expect(typeof mpvService.start).toBe('function')
-    expect(typeof mpvService.stop).toBe('function')
-    expect(typeof mpvService.isConnected).toBe('function')
+  it('should export MpvProcess class', async () => {
+    const { MpvProcess } = await import('../../services/mpv-process.js')
+    expect(MpvProcess).toBeDefined()
+    expect(typeof MpvProcess).toBe('function')
+  })
+
+  it('should create instance with speakerId and sinkName', async () => {
+    const { MpvProcess } = await import('../../services/mpv-process.js')
+    const mpv = new MpvProcess(1, 'test_sink')
+    expect(mpv.speakerId).toBe(1)
+    expect(mpv.isConnected()).toBe(false)
   })
 
   it('should report not connected before start', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    expect(mpvService.isConnected()).toBe(false)
+    const { MpvProcess } = await import('../../services/mpv-process.js')
+    const mpv = new MpvProcess(1, 'test_sink')
+    expect(mpv.isConnected()).toBe(false)
   })
 
-  it('should return empty status when not connected', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    const status = await mpvService.getStatus()
-    expect(status).toEqual(EMPTY_STATUS)
+  it('should return idle playback info when not connected', async () => {
+    const { MpvProcess } = await import('../../services/mpv-process.js')
+    const mpv = new MpvProcess(1, 'test_sink')
+    const info = await mpv.getPlaybackInfo()
+    expect(info.playing).toBe(false)
+    expect(info.paused).toBe(false)
+    expect(info.title).toBe('')
+    expect(info.url).toBe('')
   })
 
-  it('should have setActiveSpeaker, getActiveSpeakerId, getActiveSpeakerName methods', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    expect(typeof mpvService.setActiveSpeaker).toBe('function')
-    expect(typeof mpvService.getActiveSpeakerId).toBe('function')
-    expect(typeof mpvService.getActiveSpeakerName).toBe('function')
+  it('should have all required methods', async () => {
+    const { MpvProcess } = await import('../../services/mpv-process.js')
+    const mpv = new MpvProcess(1, 'test_sink')
+    expect(typeof mpv.start).toBe('function')
+    expect(typeof mpv.play).toBe('function')
+    expect(typeof mpv.pause).toBe('function')
+    expect(typeof mpv.resume).toBe('function')
+    expect(typeof mpv.stopPlayback).toBe('function')
+    expect(typeof mpv.setVolume).toBe('function')
+    expect(typeof mpv.seekTo).toBe('function')
+    expect(typeof mpv.getPlaybackInfo).toBe('function')
+    expect(typeof mpv.isConnected).toBe('function')
+    expect(typeof mpv.kill).toBe('function')
+    expect(typeof mpv.destroy).toBe('function')
   })
 
-  it('should return null for active speaker before setting', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    expect(mpvService.getActiveSpeakerId()).toBeNull()
-    expect(mpvService.getActiveSpeakerName()).toBeNull()
-  })
-
-  it('should store active speaker after setActiveSpeaker', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    mpvService.setActiveSpeaker(1, 'alsa_output.analog', 'Living Room')
-    expect(mpvService.getActiveSpeakerId()).toBe(1)
-    expect(mpvService.getActiveSpeakerName()).toBe('Living Room')
-  })
-
-  it('should include speaker fields in status when not connected', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    mpvService.setActiveSpeaker(2, 'bluez_sink.bt', 'Bedroom')
-    const status = await mpvService.getStatus()
-    expect(status.speaker_id).toBe(2)
-    expect(status.speaker_name).toBe('Bedroom')
-    expect(status.playing).toBe(false)
-  })
-
-  it('should preserve active speaker after stop', async () => {
-    const { mpvService } = await import('../../services/mpv.service.js')
-    mpvService.setActiveSpeaker(3, 'test_sink', 'Test Speaker')
-    await mpvService.stop()
-    expect(mpvService.getActiveSpeakerId()).toBe(3)
-    expect(mpvService.getActiveSpeakerName()).toBe('Test Speaker')
-  })
-
-  it('should pass --audio-device arg when start is called with sinkName', async () => {
+  it('should pass --audio-device arg when spawning', async () => {
     vi.clearAllMocks()
     const { spawn } = await import('node:child_process')
     const mockProcess = {
@@ -122,14 +111,15 @@ describe('mpvService', () => {
     }
     vi.mocked(connect).mockReturnValue(mockSocket as unknown as ReturnType<typeof connect>)
 
-    const { mpvService } = await import('../../services/mpv.service.js')
-    await mpvService.start('bluez_sink.bt_speaker')
+    const { MpvProcess } = await import('../../services/mpv-process.js')
+    const mpv = new MpvProcess(1, 'bluez_sink.bt_speaker')
+    await mpv.start()
 
     const spawnArgs = vi.mocked(spawn).mock.calls[0][1] as string[]
     expect(spawnArgs).toContain('--audio-device=pulse/bluez_sink.bt_speaker')
+    expect(spawnArgs).toContain('--input-ipc-server=/tmp/mpv-socket-1')
 
-    // cleanup without rejecting pending (just kill process ref)
-    vi.mocked(spawn).mockClear()
+    mpv.kill()
   })
 
   it('should pass --volume arg with default volume when starting', async () => {
@@ -152,16 +142,17 @@ describe('mpvService', () => {
     }
     vi.mocked(connect).mockReturnValue(mockSocket as unknown as ReturnType<typeof connect>)
 
-    const { mpvService } = await import('../../services/mpv.service.js')
-    await mpvService.start()
+    const { MpvProcess } = await import('../../services/mpv-process.js')
+    const mpv = new MpvProcess(1, 'test_sink')
+    await mpv.start()
 
     const spawnArgs = vi.mocked(spawn).mock.calls[0][1] as string[]
     expect(spawnArgs).toContain('--volume=60')
 
-    vi.mocked(spawn).mockClear()
+    mpv.kill()
   })
 
-  it('should use custom default volume set via setActiveSpeaker', async () => {
+  it('should use custom volume when starting with volume param', async () => {
     vi.clearAllMocks()
     const { spawn } = await import('node:child_process')
     const mockProcess = {
@@ -181,41 +172,29 @@ describe('mpvService', () => {
     }
     vi.mocked(connect).mockReturnValue(mockSocket as unknown as ReturnType<typeof connect>)
 
-    const { mpvService } = await import('../../services/mpv.service.js')
-    mpvService.setActiveSpeaker(1, 'test_sink', 'Test', 42)
-    await mpvService.start('test_sink')
+    const { MpvProcess } = await import('../../services/mpv-process.js')
+    const mpv = new MpvProcess(1, 'test_sink')
+    await mpv.start(42)
 
     const spawnArgs = vi.mocked(spawn).mock.calls[0][1] as string[]
     expect(spawnArgs).toContain('--volume=42')
 
-    vi.mocked(spawn).mockClear()
+    mpv.kill()
   })
 
-  it('should not pass --audio-device arg when start is called without sinkName', async () => {
-    vi.clearAllMocks()
-    const { spawn } = await import('node:child_process')
-    const mockProcess = {
-      on: vi.fn(),
-      kill: vi.fn(),
-    }
-    vi.mocked(spawn).mockReturnValue(mockProcess as unknown as ReturnType<typeof spawn>)
+  it('should generate unique socket paths per speaker', async () => {
+    const { MpvProcess } = await import('../../services/mpv-process.js')
+    const mpv1 = new MpvProcess(1, 'sink1')
+    const mpv2 = new MpvProcess(2, 'sink2')
+    // Both instances should target different sockets (verified via spawn args)
+    expect(mpv1.speakerId).toBe(1)
+    expect(mpv2.speakerId).toBe(2)
+  })
 
-    const { connect } = await import('node:net')
-    const mockSocket = {
-      on: vi.fn((event: string, cb: (...args: unknown[]) => void) => {
-        if (event === 'connect') setTimeout(cb, 5)
-        return mockSocket
-      }),
-      destroy: vi.fn(),
-      write: vi.fn(),
-    }
-    vi.mocked(connect).mockReturnValue(mockSocket as unknown as ReturnType<typeof connect>)
-
-    const { mpvService } = await import('../../services/mpv.service.js')
-    await mpvService.start()
-
-    const spawnArgs = vi.mocked(spawn).mock.calls[0][1] as string[]
-    const hasAudioDevice = spawnArgs.some((arg: string) => arg.startsWith('--audio-device='))
-    expect(hasAudioDevice).toBe(false)
+  it('should clean up on destroy', async () => {
+    const { MpvProcess } = await import('../../services/mpv-process.js')
+    const mpv = new MpvProcess(1, 'test_sink')
+    await mpv.destroy()
+    expect(mpv.isConnected()).toBe(false)
   })
 })

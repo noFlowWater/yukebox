@@ -9,6 +9,7 @@ import { setupAuth, wrapWithAuth, getAuthCookie } from '../helpers/auth.js'
 const { mockEngine } = vi.hoisted(() => ({
   mockEngine: {
     getStatus: vi.fn(),
+    getStatusAsync: vi.fn(),
   },
 }))
 
@@ -55,7 +56,7 @@ describe('GET /api/status', () => {
   })
 
   it('should return current status', async () => {
-    mockEngine.getStatus.mockReturnValue({
+    const statusData = {
       playing: true,
       paused: false,
       title: 'Test Song',
@@ -66,7 +67,9 @@ describe('GET /api/status', () => {
       speaker_id: null,
       speaker_name: null,
       has_next: false,
-    })
+    }
+    mockEngine.getStatus.mockReturnValue(statusData)
+    mockEngine.getStatusAsync.mockResolvedValue(statusData)
 
     const response = await app.inject({
       method: 'GET',
@@ -84,6 +87,7 @@ describe('GET /api/status', () => {
 
   it('should return empty status when nothing is playing', async () => {
     mockEngine.getStatus.mockReturnValue({ ...EMPTY_STATUS })
+    mockEngine.getStatusAsync.mockResolvedValue({ ...EMPTY_STATUS })
 
     const response = await app.inject({
       method: 'GET',
@@ -98,7 +102,7 @@ describe('GET /api/status', () => {
   })
 
   it('should include speaker_id and speaker_name in status', async () => {
-    mockEngine.getStatus.mockReturnValue({
+    const statusData = {
       playing: true,
       paused: false,
       title: 'Speaker Song',
@@ -109,7 +113,9 @@ describe('GET /api/status', () => {
       speaker_id: 1,
       speaker_name: 'Living Room',
       has_next: false,
-    })
+    }
+    mockEngine.getStatus.mockReturnValue(statusData)
+    mockEngine.getStatusAsync.mockResolvedValue(statusData)
 
     const response = await app.inject({
       method: 'GET',
@@ -142,7 +148,7 @@ describe('GET /api/status', () => {
 
 describe('GET /api/status/stream', () => {
   it('should return SSE content type and initial data', async () => {
-    mockEngine.getStatus.mockReturnValue({
+    const statusData = {
       playing: true,
       paused: false,
       title: 'SSE Song',
@@ -153,7 +159,9 @@ describe('GET /api/status/stream', () => {
       speaker_id: null,
       speaker_name: null,
       has_next: false,
-    })
+    }
+    mockEngine.getStatus.mockReturnValue(statusData)
+    mockEngine.getStatusAsync.mockResolvedValue(statusData)
 
     const app = buildTestApp()
     const address = await app.listen({ port: 0 })

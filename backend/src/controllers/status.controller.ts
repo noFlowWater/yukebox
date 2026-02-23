@@ -31,7 +31,7 @@ export async function handleStatus(
       return
     }
 
-    const status = engine.getStatus()
+    const status = await engine.getStatusAsync()
     reply.status(200).send(ok(status))
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
@@ -52,7 +52,7 @@ export async function handleStatusStream(
   const speakerIdParam = request.query.speaker_id
   const speakerId = speakerIdParam ? Number(speakerIdParam) : undefined
 
-  const sendStatus = () => {
+  const sendStatus = async () => {
     try {
       const engine = speakerId
         ? playbackManager.getEngine(speakerId)
@@ -74,7 +74,7 @@ export async function handleStatusStream(
         return
       }
 
-      const status = engine.getStatus()
+      const status = await engine.getStatusAsync()
       reply.raw.write(`data: ${JSON.stringify(status)}\n\n`)
     } catch {
       // skip on error, will retry next interval

@@ -133,25 +133,31 @@ export function play(body: { url?: string; query?: string; title?: string; thumb
   })
 }
 
-export function stop() {
-  return request<{ stopped: boolean }>('/api/stop', { method: 'POST' })
-}
-
-export function pause() {
-  return request<{ toggled: boolean }>('/api/pause', { method: 'POST' })
-}
-
-export function setVolume(volume: number) {
-  return request<{ volume: number }>('/api/volume', {
+export function stop(speakerId?: number | null) {
+  return request<{ stopped: boolean }>('/api/stop', {
     method: 'POST',
-    body: JSON.stringify({ volume }),
+    body: speakerId ? JSON.stringify({ speaker_id: speakerId }) : undefined,
   })
 }
 
-export function seek(position: number) {
+export function pause(speakerId?: number | null) {
+  return request<{ toggled: boolean }>('/api/pause', {
+    method: 'POST',
+    body: speakerId ? JSON.stringify({ speaker_id: speakerId }) : undefined,
+  })
+}
+
+export function setVolume(volume: number, speakerId?: number | null) {
+  return request<{ volume: number }>('/api/volume', {
+    method: 'POST',
+    body: JSON.stringify({ volume, ...(speakerId && { speaker_id: speakerId }) }),
+  })
+}
+
+export function seek(position: number, speakerId?: number | null) {
   return request<{ position: number }>('/api/seek', {
     method: 'POST',
-    body: JSON.stringify({ position }),
+    body: JSON.stringify({ position, ...(speakerId && { speaker_id: speakerId }) }),
   })
 }
 

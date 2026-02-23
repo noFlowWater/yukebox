@@ -80,13 +80,12 @@ export class PlaybackEngine {
         throw new Error('Either url or query is required')
       }
 
-      // If currently playing, pause current item (save position)
+      // If currently playing, pause current item (save position) — stays in queue as 'paused'
       if (this.state === 'playing' || this.state === 'paused') {
         await this.pauseCurrentItem()
       }
 
-      // Insert new item at front of queue
-      this.queue.removePlaying()
+      // Insert new item at front of queue (paused item remains behind it)
       const queueItem = this.queue.insertAtFront({
         url,
         title,
@@ -274,13 +273,12 @@ export class PlaybackEngine {
       const item = items.find((i) => i.id === id)
       if (!item) return null
 
-      // If currently playing, pause current item
+      // If currently playing, pause current item — stays in queue as 'paused'
       if (this.state === 'playing' || this.state === 'paused') {
         await this.pauseCurrentItem()
       }
 
-      // Move target to front
-      this.queue.removePlaying()
+      // Move target to front (paused item remains behind it)
       const moved = this.queue.moveToFront(id)
       if (!moved) return null
 

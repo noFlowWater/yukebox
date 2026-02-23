@@ -4,8 +4,10 @@ const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:4000'
 
 export async function GET(request: NextRequest) {
   const cookie = request.headers.get('cookie') || ''
+  const speakerId = request.nextUrl.searchParams.get('speaker_id')
+  const params = speakerId ? `?speaker_id=${speakerId}` : ''
 
-  const upstream = await fetch(`${INTERNAL_API_URL}/api/status/stream`, {
+  const upstream = await fetch(`${INTERNAL_API_URL}/api/status/stream${params}`, {
     headers: { cookie },
     signal: request.signal,
   })

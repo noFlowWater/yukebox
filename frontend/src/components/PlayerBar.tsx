@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { useStatus, EMPTY_STATUS } from '@/contexts/StatusContext'
+import { useSpeaker } from '@/contexts/SpeakerContext'
 import { formatDuration, handleApiError } from '@/lib/utils'
 import type { PlaybackStatus } from '@/types'
 import * as api from '@/lib/api'
 
 export function PlayerBar() {
   const { status } = useStatus()
+  const { activeSpeakerId } = useSpeaker()
   const [volumeLocal, setVolumeLocal] = useState<number | null>(null)
   const [seekLocal, setSeekLocal] = useState<number | null>(null)
   const [smoothPosition, setSmoothPosition] = useState(0)
@@ -102,21 +104,21 @@ export function PlayerBar() {
 
   const handlePause = useCallback(async () => {
     try {
-      await api.pause()
+      await api.pause(activeSpeakerId)
     } catch (err) {
       handleApiError(err, 'Pause failed')
     }
-  }, [])
+  }, [activeSpeakerId])
 
   const handleStop = useCallback(async () => {
     userStoppedRef.current = true
     try {
-      await api.stop()
+      await api.stop(activeSpeakerId)
     } catch (err) {
       handleApiError(err, 'Stop failed')
       userStoppedRef.current = false
     }
-  }, [])
+  }, [activeSpeakerId])
 
   const volumeTarget = useRef<number | null>(null)
 
@@ -137,13 +139,13 @@ export function PlayerBar() {
     setVolumeLocal(vol)
     volumeTarget.current = vol
     try {
-      await api.setVolume(vol)
+      await api.setVolume(vol, activeSpeakerId)
     } catch (err) {
       handleApiError(err, 'Volume change failed')
       volumeTarget.current = null
       setVolumeLocal(null)
     }
-  }, [])
+  }, [activeSpeakerId])
 
   const seekTarget = useRef<number | null>(null)
 
@@ -164,13 +166,13 @@ export function PlayerBar() {
     setSeekLocal(pos)
     seekTarget.current = pos
     try {
-      await api.seek(pos)
+      await api.seek(pos, activeSpeakerId)
     } catch (err) {
       handleApiError(err, 'Seek failed')
       seekTarget.current = null
       setSeekLocal(null)
     }
-  }, [])
+  }, [activeSpeakerId])
 
   // Idle state
   if (!displayStatus.playing && !displayStatus.paused) {

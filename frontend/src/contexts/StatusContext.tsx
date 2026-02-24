@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
 import type { PlaybackStatus } from '@/types'
 import { getStatusStreamUrl } from '@/lib/api'
+import { useSpeaker } from '@/contexts/SpeakerContext'
 
 const RECONNECT_INTERVAL = 3000
 const MAX_RETRIES = 10
@@ -36,18 +37,24 @@ export function useStatus(): StatusContextValue {
 }
 
 export function StatusProvider({ children }: { children: React.ReactNode }) {
+  const { activeSpeakerId } = useSpeaker()
   const [status, setStatus] = useState<PlaybackStatus>(EMPTY_STATUS)
   const [connected, setConnected] = useState(false)
   const retriesRef = useRef(0)
   const eventSourceRef = useRef<EventSource | null>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const connect = useCallback(() => {
+  const connect = useCallback((speakerId: number | null) => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
     }
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
 
-    const es = new EventSource(getStatusStreamUrl(), { withCredentials: true })
+    const url = getStatusStreamUrl(speakerId)
+    const es = new EventSource(url, { withCredentials: true })
     eventSourceRef.current = es
 
     es.onopen = () => {
@@ -71,13 +78,15 @@ export function StatusProvider({ children }: { children: React.ReactNode }) {
 
       if (retriesRef.current < MAX_RETRIES) {
         retriesRef.current += 1
-        timerRef.current = setTimeout(connect, RECONNECT_INTERVAL)
+        timerRef.current = setTimeout(() => connect(speakerId), RECONNECT_INTERVAL)
       }
     }
   }, [])
 
+  // Reconnect SSE when active speaker changes
   useEffect(() => {
-    connect()
+    retriesRef.current = 0
+    connect(activeSpeakerId)
 
     return () => {
       if (eventSourceRef.current) {
@@ -89,7 +98,7 @@ export function StatusProvider({ children }: { children: React.ReactNode }) {
         timerRef.current = null
       }
     }
-  }, [connect])
+  }, [activeSpeakerId, connect])
 
   return (
     <StatusContext.Provider value={{ status, connected }}>

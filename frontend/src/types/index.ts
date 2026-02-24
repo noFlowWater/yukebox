@@ -45,6 +45,7 @@ export interface QueueItem {
   paused_position: number | null
   added_at: string
   speaker_id: number | null
+  schedule_id: number | null
 }
 
 // Schedule

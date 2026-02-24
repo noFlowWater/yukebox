@@ -23,11 +23,11 @@ export default function RootLayout({
       <body>
         <AccessibilityProvider>
           <AuthProvider>
-            <StatusProvider>
-              <SpeakerProvider>
+            <SpeakerProvider>
+              <StatusProvider>
                 {children}
-              </SpeakerProvider>
-            </StatusProvider>
+              </StatusProvider>
+            </SpeakerProvider>
           </AuthProvider>
         </AccessibilityProvider>
         <Toaster />

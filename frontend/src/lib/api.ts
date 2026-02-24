@@ -178,8 +178,9 @@ export function getStatus() {
   return request<PlaybackStatus>('/api/status')
 }
 
-export function getStatusStreamUrl() {
-  return '/api/status/stream'
+export function getStatusStreamUrl(speakerId?: number | null) {
+  const params = speakerId ? `?speaker_id=${speakerId}` : ''
+  return `/api/status/stream${params}`
 }
 
 // --- Queue ---

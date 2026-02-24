@@ -8,6 +8,7 @@ export interface QueueItem {
   status: 'pending' | 'playing' | 'paused'
   paused_position: number | null
   speaker_id: number | null
+  schedule_id: number | null
   added_at: string
 }
 
@@ -17,4 +18,5 @@ export interface CreateQueueItem {
   thumbnail: string
   duration: number
   speaker_id?: number | null
+  schedule_id?: number | null
 }

@@ -1,24 +1,37 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
-import { mpvService } from '../services/mpv.service.js'
+import { playbackManager } from '../services/playback-manager.js'
 import * as queueService from '../services/queue.service.js'
-import * as scheduleService from '../services/schedule.service.js'
 import { ok, fail } from '../types/api.js'
 
-function computeHasNext(isIdle: boolean): boolean {
-  if (!isIdle) return false
-  return (
-    queueService.getAll().length > 0 ||
-    scheduleService.getAll().some((s) => s.status === 'playing')
-  )
-}
-
 export async function handleStatus(
-  _request: FastifyRequest,
+  request: FastifyRequest<{ Querystring: { speaker_id?: string } }>,
   reply: FastifyReply,
 ): Promise<void> {
   try {
-    const status = await mpvService.getStatus()
-    status.has_next = computeHasNext(!status.playing && !status.paused)
+    const speakerIdParam = request.query.speaker_id
+    const speakerId = speakerIdParam ? Number(speakerIdParam) : undefined
+
+    const engine = speakerId
+      ? playbackManager.getEngine(speakerId)
+      : playbackManager.getDefaultEngine()
+
+    if (!engine) {
+      reply.status(200).send(ok({
+        playing: false,
+        paused: false,
+        title: '',
+        url: '',
+        duration: 0,
+        position: 0,
+        volume: 60,
+        speaker_id: null,
+        speaker_name: null,
+        has_next: false,
+      }))
+      return
+    }
+
+    const status = await engine.getStatusAsync()
     reply.status(200).send(ok(status))
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
@@ -27,7 +40,7 @@ export async function handleStatus(
 }
 
 export async function handleStatusStream(
-  request: FastifyRequest,
+  request: FastifyRequest<{ Querystring: { speaker_id?: string } }>,
   reply: FastifyReply,
 ): Promise<void> {
   reply.raw.writeHead(200, {
@@ -36,10 +49,32 @@ export async function handleStatusStream(
     'Connection': 'keep-alive',
   })
 
+  const speakerIdParam = request.query.speaker_id
+  const speakerId = speakerIdParam ? Number(speakerIdParam) : undefined
+
   const sendStatus = async () => {
     try {
-      const status = await mpvService.getStatus()
-      status.has_next = computeHasNext(!status.playing && !status.paused)
+      const engine = speakerId
+        ? playbackManager.getEngine(speakerId)
+        : playbackManager.getDefaultEngine()
+
+      if (!engine) {
+        reply.raw.write(`data: ${JSON.stringify({
+          playing: false,
+          paused: false,
+          title: '',
+          url: '',
+          duration: 0,
+          position: 0,
+          volume: 60,
+          speaker_id: null,
+          speaker_name: null,
+          has_next: false,
+        })}\n\n`)
+        return
+      }
+
+      const status = await engine.getStatusAsync()
       reply.raw.write(`data: ${JSON.stringify(status)}\n\n`)
     } catch {
       // skip on error, will retry next interval
@@ -47,7 +82,7 @@ export async function handleStatusStream(
   }
 
   // Send initial status immediately
-  await sendStatus()
+  sendStatus()
 
   // Poll every second
   const interval = setInterval(sendStatus, 1000)

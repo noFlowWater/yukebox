@@ -4,12 +4,22 @@ import playbackRoutes from '../../routes/playback.js'
 import { errorHandler } from '../../middleware/error-handler.js'
 import { setupAuth, wrapWithAuth, getAuthCookie } from '../helpers/auth.js'
 
-// Mock mpv service
-vi.mock('../../services/mpv.service.js', () => ({
-  mpvService: {
-    stopPlayback: vi.fn(),
-    pause: vi.fn(),
+// Use vi.hoisted to make mockEngine available in hoisted vi.mock
+const { mockEngine } = vi.hoisted(() => ({
+  mockEngine: {
+    stop: vi.fn(),
+    togglePause: vi.fn(),
     setVolume: vi.fn(),
+    seek: vi.fn(),
+    getStatus: vi.fn().mockReturnValue({ playing: false }),
+  },
+}))
+
+vi.mock('../../services/playback-manager.js', () => ({
+  playbackManager: {
+    getEngine: vi.fn().mockReturnValue(mockEngine),
+    getDefaultEngine: vi.fn().mockReturnValue(mockEngine),
+    getOrCreateEngine: vi.fn().mockReturnValue(mockEngine),
   },
 }))
 
@@ -37,6 +47,10 @@ describe('Playback Control API', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockEngine.stop.mockResolvedValue(undefined)
+    mockEngine.togglePause.mockResolvedValue(undefined)
+    mockEngine.setVolume.mockResolvedValue(undefined)
+    mockEngine.seek.mockResolvedValue(undefined)
   })
 
   it('should return 401 without auth', async () => {
@@ -46,9 +60,6 @@ describe('Playback Control API', () => {
 
   describe('POST /api/stop', () => {
     it('should stop playback and return 200', async () => {
-      const { mpvService } = await import('../../services/mpv.service.js')
-      vi.mocked(mpvService.stopPlayback).mockResolvedValueOnce()
-
       const response = await app.inject({
         method: 'POST',
         url: '/api/stop',
@@ -61,9 +72,8 @@ describe('Playback Control API', () => {
       expect(body.data.stopped).toBe(true)
     })
 
-    it('should return 500 on mpv error', async () => {
-      const { mpvService } = await import('../../services/mpv.service.js')
-      vi.mocked(mpvService.stopPlayback).mockRejectedValueOnce(new Error('mpv not connected'))
+    it('should return 500 on engine error', async () => {
+      mockEngine.stop.mockRejectedValueOnce(new Error('mpv not connected'))
 
       const response = await app.inject({
         method: 'POST',
@@ -79,9 +89,6 @@ describe('Playback Control API', () => {
 
   describe('POST /api/pause', () => {
     it('should toggle pause and return 200', async () => {
-      const { mpvService } = await import('../../services/mpv.service.js')
-      vi.mocked(mpvService.pause).mockResolvedValueOnce()
-
       const response = await app.inject({
         method: 'POST',
         url: '/api/pause',
@@ -94,9 +101,8 @@ describe('Playback Control API', () => {
       expect(body.data.toggled).toBe(true)
     })
 
-    it('should return 500 on mpv error', async () => {
-      const { mpvService } = await import('../../services/mpv.service.js')
-      vi.mocked(mpvService.pause).mockRejectedValueOnce(new Error('mpv not connected'))
+    it('should return 500 on engine error', async () => {
+      mockEngine.togglePause.mockRejectedValueOnce(new Error('mpv not connected'))
 
       const response = await app.inject({
         method: 'POST',
@@ -111,9 +117,6 @@ describe('Playback Control API', () => {
 
   describe('POST /api/volume', () => {
     it('should set volume and return 200', async () => {
-      const { mpvService } = await import('../../services/mpv.service.js')
-      vi.mocked(mpvService.setVolume).mockResolvedValueOnce()
-
       const response = await app.inject({
         method: 'POST',
         url: '/api/volume',
@@ -172,9 +175,8 @@ describe('Playback Control API', () => {
       expect(response.statusCode).toBe(400)
     })
 
-    it('should return 500 on mpv error', async () => {
-      const { mpvService } = await import('../../services/mpv.service.js')
-      vi.mocked(mpvService.setVolume).mockRejectedValueOnce(new Error('mpv fail'))
+    it('should return 500 on engine error', async () => {
+      mockEngine.setVolume.mockRejectedValueOnce(new Error('mpv fail'))
 
       const response = await app.inject({
         method: 'POST',

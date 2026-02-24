@@ -1,6 +1,6 @@
 import * as speakerRepo from '../repositories/speaker.repository.js'
 import * as pulseService from './pulse.service.js'
-import { mpvService } from './mpv.service.js'
+import { playbackManager } from './playback-manager.js'
 import * as settingsService from './settings.service.js'
 import { toPublicSpeaker } from '../types/speaker.js'
 import type { SpeakerPublic, AvailableSink } from '../types/speaker.js'
@@ -49,6 +49,9 @@ export async function remove(id: number): Promise<void> {
       throw new SpeakerError('NOT_FOUND', 'Speaker not found')
     }
 
+    // Destroy playback engine if exists
+    await playbackManager.destroyEngine(id)
+
     const wasDefault = speaker.is_default === 1
     speakerRepo.remove(id)
 
@@ -75,14 +78,12 @@ export async function list(): Promise<SpeakerPublic[]> {
       // pactl unavailable — all speakers shown as offline
     }
 
-    const activeSpeakerId = mpvService.getActiveSpeakerId()
-    const status = mpvService.isConnected() ? await mpvService.getStatus() : null
-    const isPlaying = status?.playing ?? false
-
     return speakers.map((speaker) => {
       const sink = sinks.find((s) => s.name === speaker.sink_name)
-      const active = speaker.id === activeSpeakerId
-      const playing = active && isPlaying
+      const engine = playbackManager.getEngine(speaker.id)
+      const status = engine?.getStatus()
+      const active = !!engine
+      const playing = status?.playing ?? false
       return toPublicSpeaker(speaker, !!sink, sink?.state ?? 'UNAVAILABLE', active, playing)
     })
   } catch (err) {
@@ -99,12 +100,8 @@ export async function activateSpeaker(id: number): Promise<SpeakerPublic> {
       throw new SpeakerError('NOT_FOUND', 'Speaker not found')
     }
 
-    if (mpvService.isConnected()) {
-      await mpvService.stop()
-    }
-
-    const volume = speaker.default_volume ?? settingsService.getDefaultVolume()
-    mpvService.setActiveSpeaker(speaker.id, speaker.sink_name, speaker.display_name, volume)
+    // Ensure engine exists for this speaker
+    playbackManager.getOrCreateEngine(id)
 
     let sinks: { name: string; state: string }[] = []
     try {
@@ -151,9 +148,9 @@ export async function rename(id: number, displayName: string): Promise<SpeakerPu
 
     speakerRepo.update(id, displayName)
 
-    // Sync cached name in mpv if this is the active speaker
-    if (mpvService.getActiveSpeakerId() === id) {
-      mpvService.setActiveSpeaker(id, speaker.sink_name, displayName)
+    const engine = playbackManager.getEngine(id)
+    if (engine) {
+      engine.setSpeakerName(displayName)
     }
 
     const updated = speakerRepo.findById(id)!

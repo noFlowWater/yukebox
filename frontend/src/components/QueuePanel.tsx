@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { ListMusic, GripVertical, Pause, Play, Shuffle, Trash2, X } from 'lucide-react'
+import { ListMusic, GripVertical, Pause, Play, Square, Shuffle, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -57,6 +57,25 @@ export function QueuePanel() {
       handleApiError(err, 'Play failed')
     }
   }, [fetchQueue])
+
+  // --- Pause (toggle) ---
+  const handlePause = useCallback(async () => {
+    try {
+      await api.pause(activeSpeakerId)
+    } catch (err) {
+      handleApiError(err, 'Pause failed')
+    }
+  }, [activeSpeakerId])
+
+  // --- Stop ---
+  const handleStop = useCallback(async () => {
+    try {
+      await api.stop(activeSpeakerId)
+      fetchQueue()
+    } catch (err) {
+      handleApiError(err, 'Stop failed')
+    }
+  }, [activeSpeakerId, fetchQueue])
 
   // --- Shuffle ---
   const handleShuffle = useCallback(async () => {
@@ -223,13 +242,15 @@ export function QueuePanel() {
                 className={`flex items-center gap-3 p-2 rounded-lg transition-colors min-w-0 ${
                   isPlaying
                     ? 'bg-success/10 border border-success/30'
-                    : `cursor-grab active:cursor-grabbing hover:bg-muted/50 ${
-                        dragIndex === index ? 'opacity-30' : ''
-                      } ${
-                        overIndex === index && dragIndex !== index
-                          ? 'border-t-2 border-primary'
-                          : 'border-t-2 border-transparent'
-                      }`
+                    : isPaused
+                      ? 'bg-warning/5 border border-warning/20'
+                      : `cursor-grab active:cursor-grabbing hover:bg-muted/50 ${
+                          dragIndex === index ? 'opacity-30' : ''
+                        } ${
+                          overIndex === index && dragIndex !== index
+                            ? 'border-t-2 border-primary'
+                            : 'border-t-2 border-transparent'
+                        }`
                 }`}
               >
                 {/* Drag handle or status indicator */}
@@ -272,7 +293,55 @@ export function QueuePanel() {
                   </div>
                 </div>
 
-                {/* Actions (only for pending items) */}
+                {/* Actions — playing item: pause + stop */}
+                {isPlaying && (
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={handlePause}
+                      title="Pause"
+                    >
+                      <Pause className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={handleStop}
+                      title="Stop"
+                    >
+                      <Square className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Actions — paused item: resume + remove */}
+                {isPaused && (
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => handlePlay(item.id)}
+                      title="Resume"
+                    >
+                      <Play className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      onClick={() => handleRemove(item.id)}
+                      title="Remove"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Actions — pending item: play + remove */}
                 {!isPlaying && !isPaused && (
                   <div className="flex items-center gap-0.5 shrink-0">
                     <Button

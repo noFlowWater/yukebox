@@ -28,8 +28,8 @@ export function insert(item: CreateQueueItem): QueueItem {
   const nextPosition = (maxRow.max_pos ?? -1) + 1
 
   const result = db.prepare(
-    'INSERT INTO queue (url, title, thumbnail, duration, position, speaker_id) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(item.url, item.title, item.thumbnail, item.duration, nextPosition, item.speaker_id ?? null)
+    'INSERT INTO queue (url, title, thumbnail, duration, position, speaker_id, schedule_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(item.url, item.title, item.thumbnail, item.duration, nextPosition, item.speaker_id ?? null, item.schedule_id ?? null)
 
   return findById(Number(result.lastInsertRowid))!
 }
@@ -40,13 +40,18 @@ export function insertAtTop(item: CreateQueueItem): QueueItem {
   const transaction = db.transaction(() => {
     db.prepare('UPDATE queue SET position = position + 1').run()
     const result = db.prepare(
-      'INSERT INTO queue (url, title, thumbnail, duration, position, speaker_id) VALUES (?, ?, ?, ?, 0, ?)'
-    ).run(item.url, item.title, item.thumbnail, item.duration, item.speaker_id ?? null)
+      'INSERT INTO queue (url, title, thumbnail, duration, position, speaker_id, schedule_id) VALUES (?, ?, ?, ?, 0, ?, ?)'
+    ).run(item.url, item.title, item.thumbnail, item.duration, item.speaker_id ?? null, item.schedule_id ?? null)
     return Number(result.lastInsertRowid)
   })
 
   const id = transaction()
   return findById(id)!
+}
+
+export function findAllBySpeaker(speakerId: number): QueueItem[] {
+  const db = getDb()
+  return db.prepare('SELECT * FROM queue WHERE speaker_id = ? ORDER BY position ASC').all(speakerId) as QueueItem[]
 }
 
 export function remove(id: number): boolean {
@@ -143,6 +148,12 @@ export function updatePosition(id: number, newPosition: number): boolean {
 
   transaction()
   return true
+}
+
+export function resetPlayingToPending(): number {
+  const db = getDb()
+  const result = db.prepare("UPDATE queue SET status = 'pending', paused_position = NULL WHERE status = 'playing'").run()
+  return result.changes
 }
 
 export function shuffle(speakerId?: number): void {

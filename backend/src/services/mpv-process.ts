@@ -1,43 +1,49 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { connect, type Socket } from 'node:net'
 import { EventEmitter } from 'node:events'
-import { config } from '../config/index.js'
-import { EMPTY_STATUS, type MpvStatus, type MpvIpcResponse } from '../types/mpv.js'
+import { mpvSocketPath } from '../config/index.js'
+import type { MpvIpcResponse } from '../types/mpv.js'
 
-class MpvService extends EventEmitter {
+export class MpvProcess extends EventEmitter {
+  readonly speakerId: number
+  private sinkName: string
+  private socketPath: string
   private process: ChildProcess | null = null
   private socket: Socket | null = null
   private requestId = 0
   private pendingRequests = new Map<number, { resolve: (data: unknown) => void; reject: (err: Error) => void }>()
   private buffer = ''
   private connected = false
-  private status: MpvStatus = { ...EMPTY_STATUS }
   private connectRetries = 0
   private maxConnectRetries = 20
   private connectTimer: ReturnType<typeof setTimeout> | null = null
-  private sinkName: string | null = null
-  private activeSpeakerId: number | null = null
-  private activeSpeakerName: string | null = null
+  private healthTimer: ReturnType<typeof setInterval> | null = null
   private trackTitle: string | null = null
-  private defaultVolume = 60
+  private currentVolume = 60
+  private destroyed = false
 
-  async start(sinkName?: string): Promise<void> {
-    if (this.process) return
+  constructor(speakerId: number, sinkName: string) {
+    super()
+    this.speakerId = speakerId
+    this.sinkName = sinkName
+    this.socketPath = mpvSocketPath(speakerId)
+  }
 
-    this.sinkName = sinkName ?? this.sinkName
+  async start(volume?: number): Promise<void> {
+    if (this.process || this.destroyed) return
+
+    if (volume !== undefined) {
+      this.currentVolume = volume
+    }
 
     const args = [
       '--idle=yes',
       '--no-video',
       '--no-terminal',
-      `--input-ipc-server=${config.mpvSocket}`,
+      `--input-ipc-server=${this.socketPath}`,
+      `--volume=${this.currentVolume}`,
+      `--audio-device=pulse/${this.sinkName}`,
     ]
-
-    args.push(`--volume=${this.defaultVolume}`)
-
-    if (this.sinkName) {
-      args.push(`--audio-device=pulse/${this.sinkName}`)
-    }
 
     this.process = spawn('mpv', args, {
       stdio: 'ignore',
@@ -48,52 +54,30 @@ class MpvService extends EventEmitter {
       this.socket?.destroy()
       this.socket = null
       this.process = null
-      this.emit('exit', code)
+      if (!this.destroyed) {
+        this.emit('process-exit', code)
+      }
     })
 
     this.process.on('error', (err) => {
-      this.emit('error', err)
+      if (!this.destroyed) {
+        this.emit('track-error', err)
+      }
     })
 
     await this.connectIpc()
-  }
-
-  async stop(): Promise<void> {
-    this.cleanup()
-  }
-
-  private cleanup(): void {
-    if (this.connectTimer) {
-      clearTimeout(this.connectTimer)
-      this.connectTimer = null
-    }
-
-    for (const [, pending] of this.pendingRequests) {
-      pending.reject(new Error('mpv shutting down'))
-    }
-    this.pendingRequests.clear()
-
-    if (this.socket) {
-      this.socket.destroy()
-      this.socket = null
-    }
-
-    if (this.process) {
-      this.process.kill('SIGTERM')
-      this.process = null
-    }
-
-    this.connected = false
-    this.status = { ...EMPTY_STATUS }
-    this.trackTitle = null
-    this.connectRetries = 0
-    this.buffer = ''
+    this.startHealthCheck()
   }
 
   private connectIpc(): Promise<void> {
     return new Promise((resolve, reject) => {
       const tryConnect = () => {
-        const socket = connect(config.mpvSocket)
+        if (this.destroyed) {
+          reject(new Error('MpvProcess destroyed'))
+          return
+        }
+
+        const socket = connect(this.socketPath)
 
         socket.on('connect', () => {
           this.socket = socket
@@ -160,24 +144,26 @@ class MpvService extends EventEmitter {
       return
     }
 
-    if (msg.event) {
-      this.emit(msg.event, msg)
-
-      if (msg.event === 'end-file') {
-        this.status.playing = false
-        this.status.paused = false
+    if (msg.event === 'end-file') {
+      if (msg.reason === 'eof') {
+        this.emit('track-end')
+      } else if (msg.reason === 'error') {
+        this.emit('track-error', new Error('mpv playback error'))
       }
+      // 'stop' reason = loadfile replace, ignore (not a real track end)
     }
   }
 
   private observeProperties(): void {
-    this.command('observe_property', 1, 'pause')
-    this.command('observe_property', 2, 'media-title')
-    this.command('observe_property', 3, 'duration')
-    this.command('observe_property', 4, 'time-pos')
-    this.command('observe_property', 5, 'volume')
-    this.command('observe_property', 6, 'path')
-    this.command('observe_property', 7, 'idle-active')
+    // Fire-and-forget: observe_property commands are setup calls.
+    // If mpv dies before they resolve, we don't need the results.
+    this.command('observe_property', 1, 'pause').catch(() => {})
+    this.command('observe_property', 2, 'media-title').catch(() => {})
+    this.command('observe_property', 3, 'duration').catch(() => {})
+    this.command('observe_property', 4, 'time-pos').catch(() => {})
+    this.command('observe_property', 5, 'volume').catch(() => {})
+    this.command('observe_property', 6, 'path').catch(() => {})
+    this.command('observe_property', 7, 'idle-active').catch(() => {})
   }
 
   private command(...args: unknown[]): Promise<unknown> {
@@ -195,58 +181,73 @@ class MpvService extends EventEmitter {
     })
   }
 
-  async play(url: string, title?: string, startPosition?: number, volume?: number): Promise<void> {
-    if (volume !== undefined) {
-      this.defaultVolume = volume
-    }
+  async play(url: string, title?: string, startPosition?: number): Promise<void> {
     if (!this.process) {
-      await this.start(this.sinkName ?? undefined)
+      await this.start()
     }
+
     if (startPosition !== undefined && startPosition > 0) {
       await this.command('loadfile', url, 'replace', `start=${startPosition}`)
     } else {
       await this.command('loadfile', url, 'replace')
     }
-    // Reset pause state and apply default volume on every new track
+
+    // Reset pause state and apply volume on every new track
     await this.setProperty('pause', false)
-    await this.setProperty('volume', this.defaultVolume)
-    this.status.volume = this.defaultVolume
-    this.status.playing = true
-    this.status.paused = false
-    this.status.url = url
+    await this.setProperty('volume', this.currentVolume)
     this.trackTitle = title ?? null
+  }
+
+  async stopPlayback(): Promise<void> {
+    try {
+      await this.command('stop')
+    } catch {
+      // mpv may already be stopped
+    }
+    this.trackTitle = null
   }
 
   async pause(): Promise<void> {
     const paused = await this.getProperty('pause')
     await this.setProperty('pause', !paused)
-    this.status.paused = !paused
   }
 
   async resume(): Promise<void> {
     await this.setProperty('pause', false)
-    this.status.paused = false
-  }
-
-  async stopPlayback(): Promise<void> {
-    await this.command('stop')
-    this.status.playing = false
-    this.status.paused = false
-    this.trackTitle = null
   }
 
   async setVolume(volume: number): Promise<void> {
-    await this.setProperty('volume', volume)
-    this.status.volume = volume
+    this.currentVolume = volume
+    try {
+      await this.setProperty('volume', volume)
+    } catch {
+      // mpv may not be connected yet — volume stored for next start
+    }
   }
 
   async seekTo(seconds: number): Promise<void> {
     await this.command('seek', seconds, 'absolute')
   }
 
-  async getStatus(): Promise<MpvStatus> {
+  async getPlaybackInfo(): Promise<{
+    playing: boolean
+    paused: boolean
+    title: string
+    url: string
+    duration: number
+    position: number
+    volume: number
+  }> {
     if (!this.connected) {
-      return { ...EMPTY_STATUS, speaker_id: this.activeSpeakerId, speaker_name: this.activeSpeakerName }
+      return {
+        playing: false,
+        paused: false,
+        title: '',
+        url: '',
+        duration: 0,
+        position: 0,
+        volume: this.currentVolume,
+      }
     }
 
     try {
@@ -255,30 +256,33 @@ class MpvService extends EventEmitter {
         this.getProperty('media-title').catch(() => ''),
         this.getProperty('duration').catch(() => 0),
         this.getProperty('time-pos').catch(() => 0),
-        this.getProperty('volume').catch(() => 60),
+        this.getProperty('volume').catch(() => this.currentVolume),
         this.getProperty('path').catch(() => ''),
         this.getProperty('idle-active').catch(() => true),
       ])
 
       const isPlaying = !idle && !!path
 
-      this.status = {
+      return {
         playing: isPlaying,
         paused: pause as boolean,
         title: isPlaying ? (this.trackTitle || (title as string) || '') : '',
         url: isPlaying ? ((path as string) || '') : '',
         duration: isPlaying ? ((duration as number) || 0) : 0,
         position: isPlaying ? ((position as number) || 0) : 0,
-        volume: (volume as number) || 60,
-        speaker_id: this.activeSpeakerId,
-        speaker_name: this.activeSpeakerName,
-        has_next: false,
+        volume: (volume as number) || this.currentVolume,
       }
     } catch {
-      // return cached status on error
+      return {
+        playing: false,
+        paused: false,
+        title: '',
+        url: '',
+        duration: 0,
+        position: 0,
+        volume: this.currentVolume,
+      }
     }
-
-    return { ...this.status }
   }
 
   private getProperty(name: string): Promise<unknown> {
@@ -289,26 +293,66 @@ class MpvService extends EventEmitter {
     return this.command('set_property', name, value)
   }
 
-  setActiveSpeaker(speakerId: number, sinkName: string, displayName: string, defaultVolume?: number): void {
-    this.activeSpeakerId = speakerId
-    this.sinkName = sinkName
-    this.activeSpeakerName = displayName
-    if (defaultVolume !== undefined) {
-      this.defaultVolume = defaultVolume
+  private startHealthCheck(): void {
+    this.stopHealthCheck()
+    this.healthTimer = setInterval(async () => {
+      if (!this.connected || this.destroyed) return
+      try {
+        await Promise.race([
+          this.getProperty('idle-active'),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+        ])
+      } catch {
+        // IPC unresponsive — kill process
+        this.kill()
+        this.emit('process-exit', -1)
+      }
+    }, 10_000)
+  }
+
+  private stopHealthCheck(): void {
+    if (this.healthTimer) {
+      clearInterval(this.healthTimer)
+      this.healthTimer = null
     }
-  }
-
-  getActiveSpeakerId(): number | null {
-    return this.activeSpeakerId
-  }
-
-  getActiveSpeakerName(): string | null {
-    return this.activeSpeakerName
   }
 
   isConnected(): boolean {
     return this.connected
   }
-}
 
-export const mpvService = new MpvService()
+  kill(): void {
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer)
+      this.connectTimer = null
+    }
+
+    this.stopHealthCheck()
+
+    for (const [, pending] of this.pendingRequests) {
+      pending.reject(new Error('mpv shutting down'))
+    }
+    this.pendingRequests.clear()
+
+    if (this.socket) {
+      this.socket.destroy()
+      this.socket = null
+    }
+
+    if (this.process) {
+      this.process.kill('SIGTERM')
+      this.process = null
+    }
+
+    this.connected = false
+    this.trackTitle = null
+    this.connectRetries = 0
+    this.buffer = ''
+  }
+
+  async destroy(): Promise<void> {
+    this.destroyed = true
+    this.kill()
+    this.removeAllListeners()
+  }
+}

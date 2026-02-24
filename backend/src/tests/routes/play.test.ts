@@ -9,15 +9,12 @@ vi.mock('../../services/play.service.js', () => ({
   play: vi.fn(),
 }))
 
-// Mock mpv service to prevent actual process spawn
-vi.mock('../../services/mpv.service.js', () => ({
-  mpvService: {
-    play: vi.fn(),
-    start: vi.fn(),
-    stop: vi.fn(),
-    isConnected: vi.fn().mockReturnValue(false),
-    getActiveSpeakerId: vi.fn().mockReturnValue(null),
-    setActiveSpeaker: vi.fn(),
+// Mock playback-manager (imported by play.service)
+vi.mock('../../services/playback-manager.js', () => ({
+  playbackManager: {
+    getEngine: vi.fn().mockReturnValue(null),
+    getDefaultEngine: vi.fn().mockReturnValue(null),
+    getOrCreateEngine: vi.fn().mockReturnValue(null),
   },
 }))
 

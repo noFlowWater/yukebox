@@ -1,22 +1,12 @@
 import { buildApp } from './app.js'
 import { config } from './config/index.js'
-import { mpvService } from './services/mpv.service.js'
-import { setupAutoAdvance } from './services/queue.service.js'
-import { startScheduler, stopScheduler } from './services/schedule.service.js'
+import { playbackManager } from './services/playback-manager.js'
 import { closeDb } from './repositories/db.js'
-import * as speakerRepo from './repositories/speaker.repository.js'
-import * as settingsService from './services/settings.service.js'
 
 const app = buildApp()
 
 try {
-  const defaultSpeaker = speakerRepo.findDefault()
-  if (defaultSpeaker) {
-    const volume = defaultSpeaker.default_volume ?? settingsService.getDefaultVolume()
-    mpvService.setActiveSpeaker(defaultSpeaker.id, defaultSpeaker.sink_name, defaultSpeaker.display_name, volume)
-  }
-  setupAutoAdvance()
-  startScheduler()
+  await playbackManager.init()
   await app.listen({ port: config.port, host: '0.0.0.0' })
 } catch (err) {
   app.log.error(err)
@@ -24,8 +14,8 @@ try {
 }
 
 async function shutdown() {
-  stopScheduler()
-  await mpvService.stop()
+  playbackManager.stopScheduleTimer()
+  await playbackManager.destroyAll()
   closeDb()
   await app.close()
   process.exit(0)

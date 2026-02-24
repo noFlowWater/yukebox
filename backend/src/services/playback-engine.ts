@@ -516,6 +516,10 @@ export class PlaybackEngine {
     }
   }
 
+  setSpeakerName(name: string): void {
+    this.speakerName = name
+  }
+
   async destroy(): Promise<void> {
     await this.mpv.destroy()
   }

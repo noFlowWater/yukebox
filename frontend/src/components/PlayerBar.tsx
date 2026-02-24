@@ -26,7 +26,6 @@ export function PlayerBar() {
     const isActive = status.playing || status.paused
 
     if (isActive) {
-      // New track arrived — update display immediately
       userStoppedRef.current = false
       lastActiveStatusRef.current = status
       setDisplayStatus(status)
@@ -40,7 +39,7 @@ export function PlayerBar() {
       return
     }
 
-    // Track ended naturally — hold previous display only if backend has a next track
+    // Track ended naturally — hold previous display while backend has a next track
     if (lastActiveStatusRef.current && status.has_next) {
       return
     }
@@ -76,11 +75,11 @@ export function PlayerBar() {
     setTitleOverflows(measure.offsetWidth > container.clientWidth)
   }, [displayStatus.title])
 
-  // Sync snapshot on every SSE update
-  useEffect(() => {
+  // Sync snapshot on every SSE update — useLayoutEffect prevents stale position flash on track change
+  useLayoutEffect(() => {
     sseSnapshotRef.current = { position: status.position, time: Date.now() }
     setSmoothPosition(status.position)
-  }, [status.position])
+  }, [status.position, status.url])
 
   // Interpolate between SSE ticks at ~60fps
   useEffect(() => {

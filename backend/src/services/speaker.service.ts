@@ -147,6 +147,12 @@ export async function rename(id: number, displayName: string): Promise<SpeakerPu
     }
 
     speakerRepo.update(id, displayName)
+
+    const engine = playbackManager.getEngine(id)
+    if (engine) {
+      engine.setSpeakerName(displayName)
+    }
+
     const updated = speakerRepo.findById(id)!
 
     let sinks: { name: string; state: string }[] = []

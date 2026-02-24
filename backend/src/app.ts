@@ -39,6 +39,12 @@ export function buildApp() {
     instance.register(settingsAdminRoutes)
   })
 
+  // Bluetooth admin routes (requireAuth + requireAdmin inside the route plugin)
+  app.register(async (instance) => {
+    const { bluetoothRoutes } = await import('./routes/bluetooth.js')
+    instance.register(bluetoothRoutes)
+  })
+
   // User routes: requireAuth + requireUser (playback features)
   app.register(async function userRoutes(instance) {
     instance.addHook('preHandler', requireAuth)

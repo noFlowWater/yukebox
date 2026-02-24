@@ -121,9 +121,24 @@ describe('db', () => {
     expect(col).toBeDefined()
   })
 
-  it('should set schema_version to 8', () => {
+  it('should set schema_version to 9', () => {
     const db = getDb()
     const row = db.prepare('SELECT version FROM schema_version').get() as { version: number }
-    expect(row.version).toBe(8)
+    expect(row.version).toBe(9)
+  })
+
+  it('should create bluetooth_devices table in v9', () => {
+    const db = getDb()
+    const table = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='bluetooth_devices'",
+    ).get()
+    expect(table).toBeDefined()
+  })
+
+  it('should add bt_device_id column to speakers in v9', () => {
+    const db = getDb()
+    const columns = db.prepare('PRAGMA table_info(speakers)').all() as { name: string }[]
+    const col = columns.find((c) => c.name === 'bt_device_id')
+    expect(col).toBeDefined()
   })
 })

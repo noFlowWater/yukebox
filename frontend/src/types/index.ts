@@ -85,6 +85,7 @@ export interface Speaker {
   display_name: string
   is_default: boolean
   default_volume: number | null
+  bt_device_id: number | null
   online: boolean
   state: string
   active: boolean
@@ -96,6 +97,50 @@ export interface AvailableSink {
   sink_name: string
   description: string
   state: string
+}
+
+// Bluetooth
+export interface BluetoothDevice {
+  id: number
+  address: string
+  name: string
+  alias: string | null
+  sink_name: string | null
+  is_connected: boolean
+  speaker_id: number | null
+  speaker_name: string | null
+  created_at: string
+}
+
+export interface AdapterStatus {
+  available: boolean
+  powered: boolean
+  adapter: string
+}
+
+export interface ScanDevice {
+  address: string
+  name: string
+  paired: boolean
+  connected: boolean
+}
+
+export interface ConnectResult {
+  address: string
+  name: string
+  paired: boolean
+  connected: boolean
+  sink_name: string | null
+  auto_registered: boolean
+  speaker_id: number | null
+}
+
+export interface Settings {
+  default_volume: number
+  bt_auto_register: boolean
+  bt_auto_reconnect: boolean
+  bt_monitoring_interval: number
+  bt_scan_duration: number
 }
 
 // Favorite

@@ -4,6 +4,7 @@ export interface Speaker {
   display_name: string
   is_default: number
   default_volume: number | null
+  bt_device_id: number | null
   created_at: string
 }
 
@@ -13,6 +14,7 @@ export interface SpeakerPublic {
   display_name: string
   is_default: boolean
   default_volume: number | null
+  bt_device_id: number | null
   online: boolean
   state: string
   active: boolean
@@ -45,6 +47,7 @@ export function toPublicSpeaker(speaker: Speaker, online: boolean, state: string
     display_name: speaker.display_name,
     is_default: speaker.is_default === 1,
     default_volume: speaker.default_volume,
+    bt_device_id: speaker.bt_device_id,
     online,
     state,
     active,

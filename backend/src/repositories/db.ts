@@ -175,4 +175,22 @@ function runMigrations(db: Database.Database): void {
       db.prepare('UPDATE schema_version SET version = ?').run(8)
     })()
   }
+
+  if (version < 9) {
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS bluetooth_devices (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          address TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL DEFAULT '',
+          alias TEXT,
+          sink_name TEXT,
+          is_connected INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `)
+      db.exec(`ALTER TABLE speakers ADD COLUMN bt_device_id INTEGER REFERENCES bluetooth_devices(id) ON DELETE SET NULL`)
+      db.prepare('UPDATE schema_version SET version = ?').run(9)
+    })()
+  }
 }

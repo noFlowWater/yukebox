@@ -60,3 +60,16 @@ export function updateDefaultVolume(id: number, volume: number | null): boolean 
   const result = db.prepare('UPDATE speakers SET default_volume = ? WHERE id = ?').run(volume, id)
   return result.changes > 0
 }
+
+export function insertWithBtDevice(sinkName: string, displayName: string, btDeviceId: number): Speaker {
+  const db = getDb()
+  const result = db.prepare(
+    'INSERT INTO speakers (sink_name, display_name, bt_device_id) VALUES (?, ?, ?)',
+  ).run(sinkName, displayName, btDeviceId)
+  return findById(Number(result.lastInsertRowid))!
+}
+
+export function findByBtDeviceId(btDeviceId: number): Speaker | undefined {
+  const db = getDb()
+  return db.prepare('SELECT * FROM speakers WHERE bt_device_id = ?').get(btDeviceId) as Speaker | undefined
+}

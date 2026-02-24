@@ -2,12 +2,16 @@ import type {
   ApiResponse,
   ApiErrorResponse,
   AvailableSink,
+  BluetoothDevice,
+  AdapterStatus,
+  ConnectResult,
   Favorite,
   PlayResult,
   PlaybackStatus,
   QueueItem,
   Schedule,
   SearchResult,
+  Settings,
   Speaker,
   User,
 } from '@/types'
@@ -328,14 +332,36 @@ export function updateSpeakerVolume(id: number, default_volume: number | null) {
 // --- Settings ---
 
 export function getSettings() {
-  return request<{ default_volume: number }>('/api/settings')
+  return request<Settings>('/api/settings')
 }
 
-export function updateSettings(body: { default_volume: number }) {
-  return request<{ default_volume: number }>('/api/settings', {
+export function updateSettings(body: Partial<Settings>) {
+  return request<Settings>('/api/settings', {
     method: 'PATCH',
     body: JSON.stringify(body),
   })
+}
+
+// --- Bluetooth ---
+
+export function getBluetoothStatus() {
+  return request<AdapterStatus>('/api/bluetooth/status')
+}
+
+export function getBluetoothDevices() {
+  return request<BluetoothDevice[]>('/api/bluetooth/devices')
+}
+
+export function connectBluetoothDevice(address: string) {
+  return request<ConnectResult>(`/api/bluetooth/connect/${encodeURIComponent(address)}`, { method: 'POST' })
+}
+
+export function disconnectBluetoothDevice(address: string) {
+  return request<{ address: string; disconnected: boolean }>(`/api/bluetooth/disconnect/${encodeURIComponent(address)}`, { method: 'POST' })
+}
+
+export function getBluetoothScanStreamUrl(duration?: number) {
+  return `/api/bluetooth/scan/stream${duration ? `?duration=${duration}` : ''}`
 }
 
 // --- Favorites ---

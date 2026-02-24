@@ -25,7 +25,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     unzip \
     bluez \
-    && rm -rf /var/lib/apt/lists/*
+    dbus \
+    && rm -rf /var/lib/apt/lists/* \
+    && dbus-uuidgen > /etc/machine-id
 
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
     -o /usr/local/bin/yt-dlp \

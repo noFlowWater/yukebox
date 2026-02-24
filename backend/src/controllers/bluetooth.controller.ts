@@ -25,7 +25,11 @@ export async function handleDevices(
   reply: FastifyReply,
 ): Promise<void> {
   try {
-    await bluetoothService.getPairedDevices()
+    try {
+      await bluetoothService.getPairedDevices()
+    } catch {
+      // host sync failed — still return DB-cached devices
+    }
     const devices = btRepo.findAllWithSpeaker()
     const result = devices.map((d) => toPublicBluetoothDevice(d, d.speaker_id, d.speaker_name))
     reply.status(200).send(ok(result))

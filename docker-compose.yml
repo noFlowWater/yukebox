@@ -11,6 +11,7 @@ services:
       - DB_PATH=${DB_PATH:-/app/data/yukebox.db}
       - JWT_SECRET=${JWT_SECRET}
       - FRONTEND_URL=http://frontend:3000
+      - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
     volumes:
       - ${PULSE_SOCKET:-/run/user/1000/pulse/native}:/tmp/pulse-native
       - ${PULSE_COOKIE:-/run/user/1000/pulse/cookie}:/tmp/pulse-cookie:ro

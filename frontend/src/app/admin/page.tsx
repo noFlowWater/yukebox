@@ -739,56 +739,62 @@ export default function AdminPage() {
                   btDevices.map((d) => (
                     <div
                       key={d.id}
-                      className="flex flex-col gap-1 rounded-lg border border-border p-3"
+                      className="flex flex-col gap-2 rounded-lg border border-border p-3"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-sm font-medium truncate">{d.alias || d.name || d.address}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
                           <Badge variant={d.is_connected ? 'default' : 'secondary'}>
-                            {d.is_connected ? 'Connected' : 'Disconnected'}
+                            {d.is_connected ? (
+                              <><Wifi className="h-3 w-3 mr-1" />Connected</>
+                            ) : (
+                              <><WifiOff className="h-3 w-3 mr-1" />Disconnected</>
+                            )}
                           </Badge>
-                        </div>
-                        <div className="shrink-0">
-                          {d.is_connected ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleBtDisconnect(d.address)}
-                              disabled={disconnectingAddress === d.address}
-                            >
-                              {disconnectingAddress === d.address ? (
-                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                              ) : (
-                                <WifiOff className="h-3 w-3 mr-1" />
-                              )}
-                              Disconnect
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleBtConnect(d.address)}
-                              disabled={connectingAddress === d.address}
-                            >
-                              {connectingAddress === d.address ? (
-                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                              ) : (
-                                <Wifi className="h-3 w-3 mr-1" />
-                              )}
-                              Connect
-                            </Button>
+                          {d.speaker_name && (
+                            <Badge variant="outline">
+                              <Speaker className="h-3 w-3 mr-1" />{d.speaker_name}
+                            </Badge>
                           )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {d.is_connected ? (
+                                <DropdownMenuItem
+                                  onClick={() => handleBtDisconnect(d.address)}
+                                  disabled={disconnectingAddress === d.address}
+                                >
+                                  {disconnectingAddress === d.address ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <WifiOff className="h-4 w-4 mr-2" />
+                                  )}
+                                  Disconnect
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() => handleBtConnect(d.address)}
+                                  disabled={connectingAddress === d.address}
+                                >
+                                  {connectingAddress === d.address ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Wifi className="h-4 w-4 mr-2" />
+                                  )}
+                                  Connect
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{d.address}</span>
-                        {d.speaker_name && (
-                          <>
-                            <span>·</span>
-                            <span>Speaker: {d.speaker_name}</span>
-                          </>
-                        )}
-                      </div>
+                      <span className="text-xs text-muted-foreground truncate">{d.address}</span>
                     </div>
                   ))
                 )}

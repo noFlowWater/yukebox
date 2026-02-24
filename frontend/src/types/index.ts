@@ -116,6 +116,7 @@ export interface AdapterStatus {
   available: boolean
   powered: boolean
   adapter: string
+  error?: string
 }
 
 export interface ScanDevice {

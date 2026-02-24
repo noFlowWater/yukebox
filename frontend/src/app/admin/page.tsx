@@ -107,6 +107,7 @@ export default function AdminPage() {
   const [scanResults, setScanResults] = useState<ScanDevice[]>([])
   const [connectingAddress, setConnectingAddress] = useState<string | null>(null)
   const [disconnectingAddress, setDisconnectingAddress] = useState<string | null>(null)
+  const [btError, setBtError] = useState<string | null>(null)
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -158,8 +159,10 @@ export default function AdminPage() {
     try {
       const status = await api.getBluetoothStatus()
       setBtAvailable(status.available && status.powered)
+      setBtError(status.error || null)
     } catch {
       setBtAvailable(false)
+      setBtError('Failed to check bluetooth status')
     }
   }, [])
 
@@ -718,9 +721,13 @@ export default function AdminPage() {
               <div className="flex flex-col items-center gap-2 py-6 text-muted-foreground">
                 <WifiOff className="h-8 w-8" />
                 <p className="text-sm text-center">
-                  Bluetooth adapter not available.<br />
-                  Check that the host has a BT adapter and D-Bus socket is mounted.
+                  Bluetooth adapter not available.
                 </p>
+                {btError && (
+                  <pre className="text-xs bg-muted rounded px-3 py-2 max-w-full overflow-x-auto whitespace-pre-wrap break-all">
+                    {btError}
+                  </pre>
+                )}
               </div>
             ) : (
               <>

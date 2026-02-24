@@ -41,7 +41,7 @@ async function runBtctl(args: string[], timeout = 10_000): Promise<string> {
   }
 }
 
-export async function getAdapterStatus(): Promise<AdapterStatus> {
+export async function getAdapterStatus(): Promise<AdapterStatus & { error?: string }> {
   try {
     const output = await runBtctl(['show'])
     const powered = /Powered:\s*yes/i.test(output)
@@ -61,8 +61,9 @@ export async function getAdapterStatus(): Promise<AdapterStatus> {
     }
 
     return { available: true, powered, adapter: 'hci0' }
-  } catch {
-    return { available: false, powered: false, adapter: '' }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return { available: false, powered: false, adapter: '', error: message }
   }
 }
 

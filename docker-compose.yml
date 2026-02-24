@@ -15,10 +15,12 @@ services:
     volumes:
       - ${PULSE_SOCKET:-/run/user/1000/pulse/native}:/tmp/pulse-native
       - ${PULSE_COOKIE:-/run/user/1000/pulse/cookie}:/tmp/pulse-cookie:ro
-      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
+      - /var/run/dbus:/var/run/dbus
       - backend-data:/app/data
     group_add:
       - audio
+    cap_add:
+      - NET_ADMIN
 
   frontend:
     build:

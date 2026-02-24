@@ -446,10 +446,19 @@ export default function AdminPage() {
                   />
                 </div>
 
-                {btAvailable && (
+                <Separator />
+                <p className="text-sm font-medium">Bluetooth Settings</p>
+                {btAvailable === null ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Checking adapter...
+                  </div>
+                ) : btAvailable === false ? (
+                  <p className="text-sm text-muted-foreground">
+                    Bluetooth adapter not available. Settings disabled.
+                  </p>
+                ) : (
                   <>
-                    <Separator />
-                    <p className="text-sm font-medium">Bluetooth Settings</p>
                     <div className="flex items-center gap-2">
                       <Checkbox
                         id="bt-auto-register"
@@ -692,130 +701,145 @@ export default function AdminPage() {
         </Card>
 
         {/* Bluetooth Devices */}
-        {btAvailable && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Bluetooth className="h-5 w-5" />
-                Bluetooth Devices ({btDevices.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {btDevices.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2 text-center">
-                  No paired BT audio devices
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Bluetooth className="h-5 w-5" />
+              Bluetooth Devices
+              {btAvailable && <span>({btDevices.length})</span>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {btAvailable === null ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : btAvailable === false ? (
+              <div className="flex flex-col items-center gap-2 py-6 text-muted-foreground">
+                <WifiOff className="h-8 w-8" />
+                <p className="text-sm text-center">
+                  Bluetooth adapter not available.<br />
+                  Check that the host has a BT adapter and D-Bus socket is mounted.
                 </p>
-              ) : (
-                btDevices.map((d) => (
-                  <div
-                    key={d.id}
-                    className="flex flex-col gap-1 rounded-lg border border-border p-3"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-medium truncate">{d.alias || d.name || d.address}</span>
-                        <Badge variant={d.is_connected ? 'default' : 'secondary'}>
-                          {d.is_connected ? 'Connected' : 'Disconnected'}
-                        </Badge>
+              </div>
+            ) : (
+              <>
+                {btDevices.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2 text-center">
+                    No paired BT audio devices
+                  </p>
+                ) : (
+                  btDevices.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex flex-col gap-1 rounded-lg border border-border p-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm font-medium truncate">{d.alias || d.name || d.address}</span>
+                          <Badge variant={d.is_connected ? 'default' : 'secondary'}>
+                            {d.is_connected ? 'Connected' : 'Disconnected'}
+                          </Badge>
+                        </div>
+                        <div className="shrink-0">
+                          {d.is_connected ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleBtDisconnect(d.address)}
+                              disabled={disconnectingAddress === d.address}
+                            >
+                              {disconnectingAddress === d.address ? (
+                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                              ) : (
+                                <WifiOff className="h-3 w-3 mr-1" />
+                              )}
+                              Disconnect
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleBtConnect(d.address)}
+                              disabled={connectingAddress === d.address}
+                            >
+                              {connectingAddress === d.address ? (
+                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                              ) : (
+                                <Wifi className="h-3 w-3 mr-1" />
+                              )}
+                              Connect
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <div className="shrink-0">
-                        {d.is_connected ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleBtDisconnect(d.address)}
-                            disabled={disconnectingAddress === d.address}
-                          >
-                            {disconnectingAddress === d.address ? (
-                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                            ) : (
-                              <WifiOff className="h-3 w-3 mr-1" />
-                            )}
-                            Disconnect
-                          </Button>
-                        ) : (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{d.address}</span>
+                        {d.speaker_name && (
+                          <>
+                            <span>·</span>
+                            <span>Speaker: {d.speaker_name}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                <Separator />
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">Scan for New Devices</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleScan}
+                      disabled={btScanning}
+                    >
+                      {btScanning ? (
+                        <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      ) : (
+                        <Search className="h-3 w-3 mr-1" />
+                      )}
+                      {btScanning ? 'Scanning...' : 'Scan'}
+                    </Button>
+                  </div>
+
+                  {scanResults.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      {scanResults.map((d) => (
+                        <div
+                          key={d.address}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-border p-3"
+                        >
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-sm font-medium truncate">{d.name || d.address}</span>
+                            <span className="text-xs text-muted-foreground">{d.address}</span>
+                          </div>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleBtConnect(d.address)}
                             disabled={connectingAddress === d.address}
+                            className="shrink-0"
                           >
                             {connectingAddress === d.address ? (
                               <Loader2 className="h-3 w-3 animate-spin mr-1" />
                             ) : (
-                              <Wifi className="h-3 w-3 mr-1" />
+                              <Plus className="h-3 w-3 mr-1" />
                             )}
-                            Connect
+                            Pair & Connect
                           </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{d.address}</span>
-                      {d.speaker_name && (
-                        <>
-                          <span>·</span>
-                          <span>Speaker: {d.speaker_name}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-
-              <Separator />
-
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Scan for New Devices</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleScan}
-                    disabled={btScanning}
-                  >
-                    {btScanning ? (
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                    ) : (
-                      <Search className="h-3 w-3 mr-1" />
-                    )}
-                    {btScanning ? 'Scanning...' : 'Scan'}
-                  </Button>
-                </div>
-
-                {scanResults.length > 0 && (
-                  <div className="flex flex-col gap-2">
-                    {scanResults.map((d) => (
-                      <div
-                        key={d.address}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-border p-3"
-                      >
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-medium truncate">{d.name || d.address}</span>
-                          <span className="text-xs text-muted-foreground">{d.address}</span>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleBtConnect(d.address)}
-                          disabled={connectingAddress === d.address}
-                          className="shrink-0"
-                        >
-                          {connectingAddress === d.address ? (
-                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                          ) : (
-                            <Plus className="h-3 w-3 mr-1" />
-                          )}
-                          Pair & Connect
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Rename Speaker Dialog */}
         <Dialog open={renameOpen} onOpenChange={setRenameOpen}>

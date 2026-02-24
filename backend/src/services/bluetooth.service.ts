@@ -83,7 +83,13 @@ async function getDeviceInfo(address: string): Promise<{ paired: boolean; connec
 
 export async function getPairedDevices(): Promise<void> {
   try {
-    const output = await runBtctl(['paired-devices'])
+    let output: string
+    try {
+      output = await runBtctl(['paired-devices'])
+    } catch {
+      // bluez < 5.71: 'paired-devices' doesn't exist, use 'devices Paired'
+      output = await runBtctl(['devices', 'Paired'])
+    }
     const lines = output.trim().split('\n').filter((l) => l.startsWith('Device '))
 
     for (const line of lines) {

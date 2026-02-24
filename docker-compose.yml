@@ -21,6 +21,8 @@ services:
       - audio
     cap_add:
       - NET_ADMIN
+    security_opt:
+      - apparmor:unconfined
 
   frontend:
     build:

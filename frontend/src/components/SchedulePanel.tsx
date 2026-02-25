@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import { Clock, Trash2, MoreVertical, Pencil, X, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -38,7 +38,6 @@ export function SchedulePanel() {
   const [isLoading, setIsLoading] = useState(true)
   const [, setTick] = useState(0)
   const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null)
-  const editAnchorRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map())
 
   const fetchSchedules = useCallback(async () => {
     try {
@@ -214,24 +213,40 @@ export function SchedulePanel() {
                   </span>
                   <div className="flex-1" />
                   {isPending ? (
-                    <Popover
-                      open={editingScheduleId === schedule.id}
-                      onOpenChange={(open) => {
-                        if (!open) setEditingScheduleId(null)
-                      }}
-                    >
-                      <PopoverTrigger asChild>
-                        <Button
-                          ref={(el) => { editAnchorRefs.current.set(schedule.id, el) }}
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 shrink-0 data-[state=open]:hidden"
-                          style={{ display: editingScheduleId === schedule.id ? 'none' : undefined }}
-                          tabIndex={-1}
-                        >
-                          <span className="sr-only">Edit time anchor</span>
-                        </Button>
-                      </PopoverTrigger>
+                    editingScheduleId === schedule.id ? (
+                      <Popover
+                        open
+                        onOpenChange={(open) => {
+                          if (!open) setEditingScheduleId(null)
+                        }}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 shrink-0"
+                          >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-auto p-3">
+                          <ScheduleTimePicker
+                            songCount={1}
+                            totalDuration={schedule.duration}
+                            initialTime={schedule.scheduled_at}
+                            submitLabel="Update"
+                            timezone={timezone}
+                            onSchedule={(scheduledAt) => handleUpdateTime(schedule.id, scheduledAt)}
+                            onCancel={() => setEditingScheduleId(null)}
+                          />
+                          {schedule.group_id && (
+                            <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">
+                              All pending items in this group will shift together.
+                            </p>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -257,23 +272,7 @@ export function SchedulePanel() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                      <PopoverContent align="end" className="w-auto p-3">
-                        <ScheduleTimePicker
-                          songCount={1}
-                          totalDuration={schedule.duration}
-                          initialTime={schedule.scheduled_at}
-                          submitLabel="Update"
-                          timezone={timezone}
-                          onSchedule={(scheduledAt) => handleUpdateTime(schedule.id, scheduledAt)}
-                          onCancel={() => setEditingScheduleId(null)}
-                        />
-                        {schedule.group_id && (
-                          <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">
-                            All pending items in this group will shift together.
-                          </p>
-                        )}
-                      </PopoverContent>
-                    </Popover>
+                    )
                   ) : (
                     <Button
                       variant="ghost"

@@ -1,6 +1,7 @@
 'use client'
 
-import { Speaker as SpeakerIcon, Play, Pause, ListMusic, Clock } from 'lucide-react'
+import { useState } from 'react'
+import { Speaker as SpeakerIcon, Play, Pause, ListMusic, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -14,6 +15,7 @@ import { useStatus } from '@/contexts/StatusContext'
 import { useSpeakerCounts } from '@/hooks/useSpeakerCounts'
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
+import { SpeakerDashboard } from '@/components/SpeakerDashboard'
 
 function StateDot({ state, online }: { state: string; online: boolean }) {
   let colorClass = 'bg-muted-foreground' // offline/unknown
@@ -34,6 +36,7 @@ export function SpeakerBar() {
   const { speakers, activeSpeakerId, loadingSpeakers, switchSpeaker } = useSpeaker()
   const { status } = useStatus()
   const { queueCount, scheduleCount } = useSpeakerCounts(activeSpeakerId)
+  const [dashboardExpanded, setDashboardExpanded] = useState(false)
 
   if (loadingSpeakers) return null
 
@@ -66,6 +69,7 @@ export function SpeakerBar() {
   const isPlaying = isOnActive && !status.paused
   const isPaused = isOnActive && status.paused
   const isIdle = !isPlaying && !isPaused && queueCount === 0 && scheduleCount === 0
+  const showDashboardToggle = speakers.length >= 2
 
   return (
     <div className="border-b border-border bg-background">
@@ -121,8 +125,26 @@ export function SpeakerBar() {
               Idle
             </span>
           )}
+
+          {showDashboardToggle && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 ml-0.5"
+              onClick={() => setDashboardExpanded((prev) => !prev)}
+              aria-label={dashboardExpanded ? 'Collapse speaker dashboard' : 'Expand speaker dashboard'}
+            >
+              {dashboardExpanded ? (
+                <ChevronUp className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          )}
         </div>
       </div>
+
+      <SpeakerDashboard expanded={dashboardExpanded && showDashboardToggle} />
     </div>
   )
 }

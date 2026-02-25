@@ -129,6 +129,29 @@ class PlaybackManager {
     if (!engine) return null
     return engine.getStatus()
   }
+
+  async getAllStatusesAsync(): Promise<MpvStatus[]> {
+    const speakers = speakerRepo.findAll()
+    const promises = speakers.map(async (speaker) => {
+      const engine = this.getEngine(speaker.id)
+      if (!engine) {
+        return {
+          playing: false,
+          paused: false,
+          title: '',
+          url: '',
+          duration: 0,
+          position: 0,
+          volume: 60,
+          speaker_id: speaker.id,
+          speaker_name: speaker.display_name,
+          has_next: false,
+        } satisfies MpvStatus
+      }
+      return engine.getStatusAsync()
+    })
+    return Promise.all(promises)
+  }
 }
 
 export const playbackManager = new PlaybackManager()

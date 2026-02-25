@@ -13,6 +13,7 @@ import type {
   SearchResult,
   Settings,
   Speaker,
+  SpeakerStatus,
   User,
 } from '@/types'
 
@@ -176,6 +177,10 @@ export function resolveUrl(url: string) {
 
 export function getStatus() {
   return request<PlaybackStatus>('/api/status')
+}
+
+export function getStatusAll() {
+  return request<SpeakerStatus[]>('/api/status/all')
 }
 
 export function getStatusStreamUrl(speakerId?: number | null) {

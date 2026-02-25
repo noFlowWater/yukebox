@@ -10,6 +10,8 @@ interface ScheduleTimePickerProps {
   onSchedule: (scheduledAt: string) => void
   onCancel: () => void
   timezone?: string
+  initialTime?: string
+  submitLabel?: string
 }
 
 const PRESETS = [
@@ -33,12 +35,18 @@ export function ScheduleTimePicker({
   onSchedule,
   onCancel,
   timezone,
+  initialTime,
+  submitLabel,
 }: ScheduleTimePickerProps) {
+  const isEditMode = !!initialTime
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null)
-  const [isCustom, setIsCustom] = useState(false)
+  const [isCustom, setIsCustom] = useState(isEditMode)
 
   const now = useMemo(() => new Date(), [])
   const defaultParts = useMemo(() => {
+    if (initialTime) {
+      return getDatePartsInTimezone(new Date(initialTime), timezone)
+    }
     const future = new Date(now.getTime() + 30 * 60 * 1000)
     const parts = getDatePartsInTimezone(future, timezone)
     const rounded = roundToNextFive(parts.minute)
@@ -48,7 +56,7 @@ export function ScheduleTimePicker({
       return getDatePartsInTimezone(adjusted, timezone)
     }
     return { ...parts, minute: rounded }
-  }, [now, timezone])
+  }, [now, timezone, initialTime])
 
   const [year, setYear] = useState(defaultParts.year)
   const [month, setMonth] = useState(defaultParts.month)
@@ -112,7 +120,7 @@ export function ScheduleTimePicker({
 
   return (
     <div className="flex flex-col gap-3 min-w-[260px]">
-      <p className="text-sm font-medium">When to play:</p>
+      <p className="text-sm font-medium">{isEditMode ? 'New time:' : 'When to play:'}</p>
 
       {/* Preset chips */}
       <div className="flex flex-wrap gap-1.5">
@@ -218,7 +226,7 @@ export function ScheduleTimePicker({
           onClick={handleSchedule}
           disabled={!scheduledDate || isPast}
         >
-          Schedule
+          {submitLabel ?? 'Schedule'}
         </Button>
       </div>
     </div>

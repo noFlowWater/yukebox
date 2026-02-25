@@ -33,6 +33,11 @@ export interface PlaybackStatus {
   has_next: boolean
 }
 
+// Speaker status (dashboard)
+export interface SpeakerStatus extends PlaybackStatus {
+  queue_count: number
+}
+
 // Queue
 export interface QueueItem {
   id: number

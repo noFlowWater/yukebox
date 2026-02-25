@@ -39,6 +39,28 @@ export async function handleStatus(
   }
 }
 
+export async function handleStatusAll(
+  _request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  try {
+    const statuses = await playbackManager.getAllStatusesAsync()
+
+    // Attach queue_count for each speaker
+    const enriched = statuses.map((status) => {
+      const speakerId = status.speaker_id
+      const queueItems = speakerId ? queueService.getAll(speakerId) : []
+      const queueCount = queueItems.filter((item) => item.status === 'pending').length
+      return { ...status, queue_count: queueCount }
+    })
+
+    reply.status(200).send(ok(enriched))
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    reply.status(500).send(fail('STATUS_ERROR', message))
+  }
+}
+
 export async function handleStatusStream(
   request: FastifyRequest<{ Querystring: { speaker_id?: string } }>,
   reply: FastifyReply,

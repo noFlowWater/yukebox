@@ -338,8 +338,7 @@ export default function Home() {
       <SpeakerBar />
 
       <main className="max-w-2xl mx-auto px-4 pt-6 flex flex-col gap-6">
-        {searchMode ? (
-          /* Search mode — full area for results */
+        {searchMode && (
           <SearchResults
             results={searchResults}
             isLoading={isSearching}
@@ -351,33 +350,31 @@ export default function Home() {
             favoritedUrls={favoritedUrls}
             onToggleFavorite={handleToggleFavorite}
           />
-        ) : (
-          /* Default — Queue / Schedule / Favorites tabs */
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full">
-              <TabsTrigger value="queue" className="flex-1">Queue</TabsTrigger>
-              <TabsTrigger value="schedule" className="flex-1">Schedule</TabsTrigger>
-              <TabsTrigger value="favorites" className="flex-1">
-                <Heart className="h-3.5 w-3.5 mr-1" />
-                Favorites
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="queue">
-              <QueuePanel />
-            </TabsContent>
-            <TabsContent value="schedule">
-              <SchedulePanel />
-            </TabsContent>
-            <TabsContent value="favorites">
-              <FavoritesPanel
-                onPlay={handlePlay}
-                onAddToQueue={handleAddToQueue}
-                onBulkAddToQueue={handleBulkAddToQueue}
-                onSchedule={handleSchedule}
-              />
-            </TabsContent>
-          </Tabs>
         )}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className={searchMode ? 'hidden' : undefined}>
+          <TabsList className="w-full">
+            <TabsTrigger value="queue" className="flex-1">Queue</TabsTrigger>
+            <TabsTrigger value="schedule" className="flex-1">Schedule</TabsTrigger>
+            <TabsTrigger value="favorites" className="flex-1">
+              <Heart className="h-3.5 w-3.5 mr-1" />
+              Favorites
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="queue" forceMount className="data-[state=inactive]:hidden">
+            <QueuePanel />
+          </TabsContent>
+          <TabsContent value="schedule" forceMount className="data-[state=inactive]:hidden">
+            <SchedulePanel />
+          </TabsContent>
+          <TabsContent value="favorites" forceMount className="data-[state=inactive]:hidden">
+            <FavoritesPanel
+              onPlay={handlePlay}
+              onAddToQueue={handleAddToQueue}
+              onBulkAddToQueue={handleBulkAddToQueue}
+              onSchedule={handleSchedule}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Player bar — fixed bottom */}

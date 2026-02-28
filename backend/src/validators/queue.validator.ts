@@ -32,5 +32,11 @@ export const updatePositionSchema = z.object({
   position: z.number().int().min(0),
 })
 
+export const setPlaybackModeSchema = z.object({
+  mode: z.enum(['sequential', 'repeat-all', 'repeat-one', 'shuffle']),
+  speaker_id: z.number().int().positive().optional(),
+})
+
 export type AddToQueueInput = z.infer<typeof addToQueueSchema>
 export type UpdatePositionInput = z.infer<typeof updatePositionSchema>
+export type SetPlaybackModeInput = z.infer<typeof setPlaybackModeSchema>

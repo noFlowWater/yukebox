@@ -156,6 +156,28 @@ export function resetPlayingToPending(): number {
   return result.changes
 }
 
+export function moveToBack(id: number): void {
+  const db = getDb()
+  const item = findById(id)
+  if (!item) return
+
+  const maxRow = db.prepare('SELECT MAX(position) as max_pos FROM queue').get() as { max_pos: number | null }
+  const newPosition = (maxRow.max_pos ?? 0) + 1
+
+  db.prepare(
+    "UPDATE queue SET status = 'pending', position = ?, paused_position = NULL WHERE id = ?",
+  ).run(newPosition, id)
+}
+
+export function findRandomPending(speakerId: number): QueueItem | undefined {
+  const db = getDb()
+  const items = db.prepare(
+    "SELECT * FROM queue WHERE status = 'pending' AND speaker_id = ? ORDER BY position ASC",
+  ).all(speakerId) as QueueItem[]
+  if (items.length === 0) return undefined
+  return items[Math.floor(Math.random() * items.length)]
+}
+
 export function shuffle(speakerId?: number): void {
   const db = getDb()
   // Only shuffle pending items

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { closeDb } from '../../repositories/db.js'
 import * as queueRepo from '../../repositories/queue.repository.js'
+import * as speakerRepo from '../../repositories/speaker.repository.js'
 
 // Use in-memory DB for tests
 beforeEach(() => {
@@ -162,5 +163,46 @@ describe('queue.repository', () => {
     const items = queueRepo.findAll()
     const playing = items.find((i) => i.status === 'playing')
     expect(playing!.title).toBe('Song 1')
+  })
+
+  it('should move item to back of queue with pending status', () => {
+    const item1 = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100 })
+    queueRepo.insert({ url: 'url2', title: 'Song 2', thumbnail: '', duration: 200 })
+    queueRepo.insert({ url: 'url3', title: 'Song 3', thumbnail: '', duration: 300 })
+
+    queueRepo.markPlaying(item1.id)
+    queueRepo.moveToBack(item1.id)
+
+    const items = queueRepo.findAll()
+    expect(items).toHaveLength(3)
+
+    // Song 1 should now be last with pending status
+    const moved = items.find((i) => i.title === 'Song 1')
+    expect(moved!.status).toBe('pending')
+    expect(moved!.position).toBeGreaterThan(items.find((i) => i.title === 'Song 3')!.position)
+  })
+
+  it('should find a random pending item for a speaker', () => {
+    const speaker = speakerRepo.insert('sink1', 'Test Speaker')
+    const item1 = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100, speaker_id: speaker.id })
+    queueRepo.insert({ url: 'url2', title: 'Song 2', thumbnail: '', duration: 200, speaker_id: speaker.id })
+    queueRepo.insert({ url: 'url3', title: 'Song 3', thumbnail: '', duration: 300, speaker_id: speaker.id })
+
+    queueRepo.markPlaying(item1.id)
+
+    // Should only return pending items
+    const random = queueRepo.findRandomPending(speaker.id)
+    expect(random).toBeDefined()
+    expect(random!.status).toBe('pending')
+    expect(['Song 2', 'Song 3']).toContain(random!.title)
+  })
+
+  it('should return undefined when no pending items for findRandomPending', () => {
+    const speaker = speakerRepo.insert('sink1', 'Test Speaker')
+    const item1 = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100, speaker_id: speaker.id })
+    queueRepo.markPlaying(item1.id)
+
+    const random = queueRepo.findRandomPending(speaker.id)
+    expect(random).toBeUndefined()
   })
 })

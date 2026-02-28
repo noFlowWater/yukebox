@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { ListMusic, Shuffle, Trash2 } from 'lucide-react'
+import { ListMusic, Shuffle, Trash2, ArrowRight, Repeat, Repeat1 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -10,9 +10,17 @@ import { handleApiError } from '@/lib/utils'
 import * as api from '@/lib/api'
 import { useSpeaker } from '@/contexts/SpeakerContext'
 import { useStatus } from '@/contexts/StatusContext'
-import type { QueueItem as QueueItemType } from '@/types'
+import type { QueueItem as QueueItemType, PlaybackMode } from '@/types'
 
 const POLL_INTERVAL = 3000
+
+const MODES: PlaybackMode[] = ['sequential', 'repeat-all', 'repeat-one', 'shuffle']
+const MODE_CONFIG: Record<PlaybackMode, { icon: typeof ArrowRight; label: string }> = {
+  sequential: { icon: ArrowRight, label: 'Sequential' },
+  'repeat-all': { icon: Repeat, label: 'Repeat all' },
+  'repeat-one': { icon: Repeat1, label: 'Repeat one' },
+  shuffle: { icon: Shuffle, label: 'Shuffle' },
+}
 
 export function QueuePanel() {
   const { activeSpeakerId } = useSpeaker()
@@ -21,6 +29,7 @@ export function QueuePanel() {
   const [isLoading, setIsLoading] = useState(true)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [overIndex, setOverIndex] = useState<number | null>(null)
+  const [playbackMode, setPlaybackMode] = useState<PlaybackMode>('sequential')
   const suppressPollRef = useRef(false)
 
   const fetchQueue = useCallback(async () => {
@@ -46,6 +55,19 @@ export function QueuePanel() {
       window.removeEventListener('queue-updated', onUpdate)
     }
   }, [fetchQueue])
+
+  // Fetch playback mode when speaker changes
+  useEffect(() => {
+    async function fetchMode() {
+      try {
+        const { mode } = await api.getPlaybackMode(activeSpeakerId)
+        setPlaybackMode(mode)
+      } catch {
+        // Fallback to sequential
+      }
+    }
+    fetchMode()
+  }, [activeSpeakerId])
 
   // --- Play from queue ---
   const handlePlay = useCallback(async (id: number) => {
@@ -77,15 +99,18 @@ export function QueuePanel() {
     }
   }, [activeSpeakerId, fetchQueue])
 
-  // --- Shuffle ---
-  const handleShuffle = useCallback(async () => {
+  // --- Playback mode cycle ---
+  const handleModeChange = useCallback(async () => {
+    const nextIndex = (MODES.indexOf(playbackMode) + 1) % MODES.length
+    const nextMode = MODES[nextIndex]
+    setPlaybackMode(nextMode)
     try {
-      await api.shuffleQueue(activeSpeakerId)
-      fetchQueue()
+      await api.setPlaybackMode(nextMode, activeSpeakerId)
     } catch (err) {
-      handleApiError(err, 'Shuffle failed')
+      setPlaybackMode(playbackMode)
+      handleApiError(err, 'Mode change failed')
     }
-  }, [activeSpeakerId, fetchQueue])
+  }, [playbackMode, activeSpeakerId])
 
   // --- Clear all pending ---
   const handleClearAll = useCallback(async () => {
@@ -212,15 +237,21 @@ export function QueuePanel() {
             Clear all
           </Button>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleShuffle}
-          title="Shuffle queue"
-        >
-          <Shuffle className="h-4 w-4 mr-1.5" />
-          Shuffle
-        </Button>
+        {(() => {
+          const config = MODE_CONFIG[playbackMode]
+          const Icon = config.icon
+          return (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleModeChange}
+              title={config.label}
+            >
+              <Icon className="h-4 w-4 mr-1.5" />
+              {config.label}
+            </Button>
+          )
+        })()}
       </div>
 
       <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden">

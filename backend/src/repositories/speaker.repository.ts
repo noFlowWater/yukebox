@@ -1,5 +1,5 @@
 import { getDb } from './db.js'
-import type { Speaker } from '../types/speaker.js'
+import type { Speaker, PlaybackMode } from '../types/speaker.js'
 
 export function insert(sinkName: string, displayName: string): Speaker {
   const db = getDb()
@@ -72,4 +72,16 @@ export function insertWithBtDevice(sinkName: string, displayName: string, btDevi
 export function findByBtDeviceId(btDeviceId: number): Speaker | undefined {
   const db = getDb()
   return db.prepare('SELECT * FROM speakers WHERE bt_device_id = ?').get(btDeviceId) as Speaker | undefined
+}
+
+export function getPlaybackMode(id: number): PlaybackMode {
+  const db = getDb()
+  const row = db.prepare('SELECT playback_mode FROM speakers WHERE id = ?').get(id) as { playback_mode: string } | undefined
+  return (row?.playback_mode as PlaybackMode) ?? 'sequential'
+}
+
+export function updatePlaybackMode(id: number, mode: PlaybackMode): boolean {
+  const db = getDb()
+  const result = db.prepare('UPDATE speakers SET playback_mode = ? WHERE id = ?').run(mode, id)
+  return result.changes > 0
 }

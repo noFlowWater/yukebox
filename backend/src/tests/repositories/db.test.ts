@@ -121,10 +121,18 @@ describe('db', () => {
     expect(col).toBeDefined()
   })
 
-  it('should set schema_version to 9', () => {
+  it('should set schema_version to 10', () => {
     const db = getDb()
     const row = db.prepare('SELECT version FROM schema_version').get() as { version: number }
-    expect(row.version).toBe(9)
+    expect(row.version).toBe(10)
+  })
+
+  it('should add playback_mode column to speakers in v10', () => {
+    const db = getDb()
+    const columns = db.prepare('PRAGMA table_info(speakers)').all() as { name: string; dflt_value: string | null }[]
+    const col = columns.find((c) => c.name === 'playback_mode')
+    expect(col).toBeDefined()
+    expect(col!.dflt_value).toBe("'sequential'")
   })
 
   it('should create bluetooth_devices table in v9', () => {

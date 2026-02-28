@@ -1,6 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import * as queueService from '../services/queue.service.js'
-import { addToQueueSchema, bulkAddToQueueSchema, updatePositionSchema } from '../validators/queue.validator.js'
+import { addToQueueSchema, bulkAddToQueueSchema, updatePositionSchema, setPlaybackModeSchema } from '../validators/queue.validator.js'
 import { ok, fail } from '../types/api.js'
 
 export async function handleGetQueue(
@@ -148,6 +148,46 @@ export async function handleClearPending(
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     reply.status(500).send(fail('QUEUE_CLEAR_ERROR', message))
+  }
+}
+
+export async function handleGetPlaybackMode(
+  request: FastifyRequest<{ Querystring: { speaker_id?: string } }>,
+  reply: FastifyReply,
+): Promise<void> {
+  try {
+    const speakerIdParam = request.query.speaker_id
+    const speakerId = speakerIdParam ? Number(speakerIdParam) : undefined
+    if (speakerIdParam && (isNaN(speakerId!) || speakerId! <= 0)) {
+      reply.status(400).send(fail('VALIDATION_ERROR', 'Invalid speaker_id'))
+      return
+    }
+
+    const mode = queueService.getPlaybackMode(speakerId)
+    reply.status(200).send(ok({ mode }))
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    reply.status(500).send(fail('PLAYBACK_MODE_ERROR', message))
+  }
+}
+
+export async function handleSetPlaybackMode(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  try {
+    const parsed = setPlaybackModeSchema.safeParse(request.body)
+    if (!parsed.success) {
+      const messages = parsed.error.errors.map((e) => `${e.path.join('.') || 'body'}: ${e.message}`)
+      reply.status(400).send(fail('VALIDATION_ERROR', messages.join('; ')))
+      return
+    }
+
+    const mode = queueService.setPlaybackMode(parsed.data.mode, parsed.data.speaker_id)
+    reply.status(200).send(ok({ mode }))
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    reply.status(500).send(fail('PLAYBACK_MODE_ERROR', message))
   }
 }
 

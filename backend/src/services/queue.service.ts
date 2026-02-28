@@ -2,6 +2,7 @@ import * as queueRepo from '../repositories/queue.repository.js'
 import * as speakerRepo from '../repositories/speaker.repository.js'
 import { playbackManager } from './playback-manager.js'
 import type { QueueItem } from '../types/queue.js'
+import type { PlaybackMode } from '../types/speaker.js'
 
 export function getAll(speakerId?: number): QueueItem[] {
   return queueRepo.findAll(speakerId)
@@ -101,6 +102,27 @@ export function shuffle(speakerId?: number): void {
     }
   }
   queueRepo.shuffle(speakerId)
+}
+
+export function getPlaybackMode(speakerId?: number): PlaybackMode {
+  const resolved = resolveSpeakerId(speakerId)
+  if (!resolved) return 'sequential'
+  try {
+    return speakerRepo.getPlaybackMode(resolved)
+  } catch {
+    return 'sequential'
+  }
+}
+
+export function setPlaybackMode(mode: PlaybackMode, speakerId?: number): PlaybackMode {
+  const resolved = resolveSpeakerId(speakerId)
+  if (!resolved) throw new Error('No speaker available')
+
+  const speaker = speakerRepo.findById(resolved)
+  if (!speaker) throw new Error('Speaker not found')
+
+  speakerRepo.updatePlaybackMode(resolved, mode)
+  return mode
 }
 
 function resolveSpeakerId(inputSpeakerId?: number): number | null {

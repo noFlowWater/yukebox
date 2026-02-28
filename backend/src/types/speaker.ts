@@ -1,3 +1,5 @@
+export type PlaybackMode = 'sequential' | 'repeat-all' | 'repeat-one' | 'shuffle'
+
 export interface Speaker {
   id: number
   sink_name: string
@@ -5,6 +7,7 @@ export interface Speaker {
   is_default: number
   default_volume: number | null
   bt_device_id: number | null
+  playback_mode: PlaybackMode
   created_at: string
 }
 

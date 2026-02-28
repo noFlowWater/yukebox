@@ -193,4 +193,11 @@ function runMigrations(db: Database.Database): void {
       db.prepare('UPDATE schema_version SET version = ?').run(9)
     })()
   }
+
+  if (version < 10) {
+    db.transaction(() => {
+      db.exec(`ALTER TABLE speakers ADD COLUMN playback_mode TEXT NOT NULL DEFAULT 'sequential'`)
+      db.prepare('UPDATE schema_version SET version = ?').run(10)
+    })()
+  }
 }

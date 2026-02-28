@@ -6,6 +6,7 @@ import * as speakerRepo from '../repositories/speaker.repository.js'
 import * as settingsService from './settings.service.js'
 import type { QueueItem } from '../types/queue.js'
 import type { MpvStatus, PlaybackState } from '../types/mpv.js'
+import type { PlaybackMode } from '../types/speaker.js'
 
 export interface PlayResult {
   title: string
@@ -410,29 +411,49 @@ export class PlaybackEngine {
           return
         }
 
-        // Check if current was a schedule item
-        const scheduleId = current.schedule_id
-        let groupId: string | null = null
+        // Schedule items: always use default sequential behavior
+        if (current.schedule_id) {
+          const scheduleId = current.schedule_id
+          let groupId: string | null = null
 
-        if (scheduleId) {
           const schedule = scheduleRepo.findById(scheduleId)
           if (schedule) {
             groupId = schedule.group_id
             scheduleRepo.updateStatus(scheduleId, 'completed')
           }
+
+          this.queue.removeFront()
+
+          if (groupId) {
+            const continued = await this.triggerGroupContinuation(groupId)
+            if (continued) return
+          }
+
+          await this.playFront()
+          return
         }
 
-        // Remove finished item
-        this.queue.removeFront()
+        // Normal items: respect playback mode
+        const mode = this.getPlaybackMode()
 
-        // Check for group continuation
-        if (groupId) {
-          const continued = await this.triggerGroupContinuation(groupId)
-          if (continued) return
+        switch (mode) {
+          case 'repeat-one':
+            await this.replayCurrent(current)
+            break
+          case 'repeat-all':
+            this.queue.moveToBack(current.id)
+            await this.playFront()
+            break
+          case 'shuffle':
+            this.queue.removeFront()
+            await this.playRandom()
+            break
+          case 'sequential':
+          default:
+            this.queue.removeFront()
+            await this.playFront()
+            break
         }
-
-        // Auto-advance to next item
-        await this.playFront()
       })
     } catch {
       // Prevent crashes from propagating
@@ -463,6 +484,50 @@ export class PlaybackEngine {
   private async handleProcessExit(): Promise<void> {
     // mpv crashed — treat same as track error
     await this.handleTrackError()
+  }
+
+  private getPlaybackMode(): PlaybackMode {
+    try {
+      return speakerRepo.getPlaybackMode(this.speakerId)
+    } catch {
+      return 'sequential'
+    }
+  }
+
+  private async replayCurrent(item: QueueItem): Promise<void> {
+    try {
+      const track = await ytdlp.resolve(item.url)
+      this.state = 'loading'
+      await this.mpv.play(track.audioUrl, item.title)
+      this.state = 'playing'
+    } catch {
+      // Failed to replay — fall back to sequential advance
+      this.queue.removeFront()
+      await this.playFront()
+    }
+  }
+
+  private async playRandom(): Promise<void> {
+    const item = this.queue.findRandomPending()
+    if (!item) {
+      this.state = 'idle'
+      return
+    }
+
+    this.queue.markPlaying(item.id)
+
+    try {
+      const track = await ytdlp.resolve(item.url)
+      const startPosition = item.status === 'paused' ? (item.paused_position ?? undefined) : undefined
+
+      this.state = 'loading'
+      await this.mpv.play(track.audioUrl, item.title, startPosition)
+      this.state = 'playing'
+    } catch {
+      // yt-dlp failed — remove and try another random
+      this.queue.remove(item.id)
+      await this.playRandom()
+    }
   }
 
   private async playFront(): Promise<void> {

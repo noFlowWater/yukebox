@@ -38,6 +38,9 @@ export interface SpeakerStatus extends PlaybackStatus {
   queue_count: number
 }
 
+// Playback mode
+export type PlaybackMode = 'sequential' | 'repeat-all' | 'repeat-one' | 'shuffle'
+
 // Queue
 export interface QueueItem {
   id: number

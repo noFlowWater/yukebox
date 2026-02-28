@@ -85,6 +85,17 @@ export class QueueManager {
     return result
   }
 
+  moveToBack(id: number): void {
+    queueRepo.moveToBack(id)
+    this.reload()
+  }
+
+  findRandomPending(): QueueItem | null {
+    const pending = this.items.filter((i) => i.status === 'pending')
+    if (pending.length === 0) return null
+    return pending[Math.floor(Math.random() * pending.length)]
+  }
+
   shuffle(): void {
     queueRepo.shuffle(this.speakerId)
     this.reload()

@@ -1,5 +1,5 @@
 import { request } from './client'
-import type { QueueItem } from '@/types'
+import type { QueueItem, PlaybackMode } from '@/types'
 
 export function getQueue(speakerId?: number | null) {
   const params = speakerId ? `?speaker_id=${speakerId}` : ''
@@ -50,5 +50,17 @@ export function shuffleQueue(speakerId?: number | null) {
   const params = speakerId ? `?speaker_id=${speakerId}` : ''
   return request<{ shuffled: boolean }>(`/api/queue/shuffle${params}`, {
     method: 'POST',
+  })
+}
+
+export function getPlaybackMode(speakerId?: number | null) {
+  const params = speakerId ? `?speaker_id=${speakerId}` : ''
+  return request<{ mode: PlaybackMode }>(`/api/queue/mode${params}`)
+}
+
+export function setPlaybackMode(mode: PlaybackMode, speakerId?: number | null) {
+  return request<{ mode: PlaybackMode }>('/api/queue/mode', {
+    method: 'PATCH',
+    body: JSON.stringify({ mode, ...(speakerId && { speaker_id: speakerId }) }),
   })
 }

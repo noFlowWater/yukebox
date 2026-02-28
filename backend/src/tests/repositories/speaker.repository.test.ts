@@ -152,4 +152,21 @@ describe('speaker.repository', () => {
     const updated = speakerRepo.updateDefaultVolume(999, 50)
     expect(updated).toBe(false)
   })
+
+  it('should default playback_mode to sequential', () => {
+    const speaker = speakerRepo.insert('sink1', 'Living Room')
+    expect(speaker.playback_mode).toBe('sequential')
+    expect(speakerRepo.getPlaybackMode(speaker.id)).toBe('sequential')
+  })
+
+  it('should update playback_mode', () => {
+    const speaker = speakerRepo.insert('sink1', 'Living Room')
+    const updated = speakerRepo.updatePlaybackMode(speaker.id, 'shuffle')
+    expect(updated).toBe(true)
+    expect(speakerRepo.getPlaybackMode(speaker.id)).toBe('shuffle')
+  })
+
+  it('should return sequential for non-existent speaker playback mode', () => {
+    expect(speakerRepo.getPlaybackMode(999)).toBe('sequential')
+  })
 })

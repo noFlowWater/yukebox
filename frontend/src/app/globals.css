@@ -86,6 +86,13 @@
     white-space: normal !important;
   }
 
+  :root[data-text-wrap="true"] main .line-clamp-2 {
+    overflow: visible !important;
+    -webkit-line-clamp: unset !important;
+    -webkit-box-orient: unset !important;
+    display: block !important;
+  }
+
   @keyframes marquee {
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }

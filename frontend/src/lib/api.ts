@@ -271,6 +271,13 @@ export function deleteSchedule(id: number) {
   })
 }
 
+export function updateScheduleTime(id: number, scheduled_at: string) {
+  return request<Schedule[]>(`/api/schedules/${id}/time`, {
+    method: 'PATCH',
+    body: JSON.stringify({ scheduled_at }),
+  })
+}
+
 export function deleteAllSchedules(speakerId?: number | null) {
   const params = speakerId ? `?speaker_id=${speakerId}` : ''
   return request<{ removed: number }>(`/api/schedules${params}`, {

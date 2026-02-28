@@ -7,6 +7,7 @@ interface SelectableCheckboxProps {
   selectionIndex: number
   onCheckedChange: () => void
   ariaLabel: string
+  className?: string
 }
 
 export function SelectableCheckbox({
@@ -14,9 +15,10 @@ export function SelectableCheckbox({
   selectionIndex,
   onCheckedChange,
   ariaLabel,
+  className,
 }: SelectableCheckboxProps) {
   return (
-    <div className="relative shrink-0">
+    <div className={`relative shrink-0 ${className ?? ''}`}>
       <Checkbox
         checked={checked}
         onCheckedChange={onCheckedChange}

@@ -149,7 +149,7 @@ export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSched
             return (
               <li
                 key={item.id}
-                className={`flex items-center gap-3 p-2 rounded-lg transition-colors min-w-0 ${
+                className={`flex items-start gap-3 p-2 rounded-lg transition-colors min-w-0 ${
                   isSelected ? 'bg-muted/70' : 'hover:bg-muted/50'
                 }`}
               >
@@ -158,6 +158,7 @@ export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSched
                   selectionIndex={selectionIndex}
                   onCheckedChange={() => toggleSelect(item.url)}
                   ariaLabel={`Select ${item.title}`}
+                  className="self-center"
                 />
 
                 {/* Thumbnail */}
@@ -166,74 +167,75 @@ export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSched
                   alt={item.title}
                   width={56}
                   height={40}
-                  className="h-10 w-14 rounded object-cover shrink-0 bg-muted"
+                  className="h-10 w-14 rounded object-cover shrink-0 bg-muted self-center"
                 />
 
-                {/* Title + Duration */}
+                {/* Title + Duration + Actions */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDuration(item.duration)}
-                  </p>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-0.5 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-primary hover:text-primary-foreground hover:bg-primary"
-                    onClick={() => onPlay({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration })}
-                    aria-label="Play now"
-                    title="Play now"
-                  >
-                    <Play className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => onAddToQueue({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration })}
-                    aria-label="Add to queue"
-                    title="Add to queue"
-                  >
-                    <ListPlus className="h-4 w-4" />
-                  </Button>
-                  <Popover
-                    open={isScheduleOpen}
-                    onOpenChange={(open) => setScheduleOpenId(open ? item.id : null)}
-                  >
-                    <PopoverTrigger asChild>
+                  <p className="text-sm font-medium line-clamp-2">{item.title}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-muted-foreground">
+                      {formatDuration(item.duration)}
+                    </p>
+                    <div className="flex-1" />
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-primary hover:text-primary-foreground hover:bg-primary"
+                        onClick={() => onPlay({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration })}
+                        aria-label="Play now"
+                        title="Play now"
+                      >
+                        <Play className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7"
-                        aria-label="Schedule"
-                        title="Schedule"
+                        onClick={() => onAddToQueue({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration })}
+                        aria-label="Add to queue"
+                        title="Add to queue"
                       >
-                        <Clock className="h-4 w-4" />
+                        <ListPlus className="h-4 w-4" />
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="end" className="w-auto p-3">
-                      <ScheduleTimePicker
-                        songCount={1}
-                        totalDuration={item.duration || 0}
-                        onSchedule={(scheduledAt) => handleSchedule(item, scheduledAt)}
-                        onCancel={() => setScheduleOpenId(null)}
-                        timezone={timezone}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive hover:text-destructive"
-                    onClick={() => handleRemove(item.id, item.url)}
-                    aria-label="Remove from favorites"
-                    title="Remove from favorites"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                      <Popover
+                        open={isScheduleOpen}
+                        onOpenChange={(open) => setScheduleOpenId(open ? item.id : null)}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            aria-label="Schedule"
+                            title="Schedule"
+                          >
+                            <Clock className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-auto p-3">
+                          <ScheduleTimePicker
+                            songCount={1}
+                            totalDuration={item.duration || 0}
+                            onSchedule={(scheduledAt) => handleSchedule(item, scheduledAt)}
+                            onCancel={() => setScheduleOpenId(null)}
+                            timezone={timezone}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={() => handleRemove(item.id, item.url)}
+                        aria-label="Remove from favorites"
+                        title="Remove from favorites"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </li>
             )

@@ -2,9 +2,17 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
-import { Clock, Trash2, X, Music } from 'lucide-react'
+import { Clock, Trash2, MoreVertical, Pencil, X, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import { ScheduleTimePicker } from '@/components/ScheduleTimePicker'
 import { formatDatetime, formatDuration, getRelativeTime, handleApiError } from '@/lib/utils'
 import * as api from '@/lib/api'
 import { useSpeaker } from '@/contexts/SpeakerContext'
@@ -29,6 +37,7 @@ export function SchedulePanel() {
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [, setTick] = useState(0)
+  const [editingScheduleId, setEditingScheduleId] = useState<number | null>(null)
 
   const fetchSchedules = useCallback(async () => {
     try {
@@ -79,6 +88,24 @@ export function SchedulePanel() {
       setSchedules(prev)
     }
   }, [schedules, activeSpeakerId])
+
+  const handleUpdateTime = useCallback(async (id: number, scheduledAt: string) => {
+    try {
+      const updated = await api.updateScheduleTime(id, scheduledAt)
+      setSchedules((prev) => {
+        const updatedIds = new Set(updated.map((u) => u.id))
+        return prev.map((s) => {
+          const match = updated.find((u) => u.id === s.id)
+          return match ?? s
+        }).filter((s) => updatedIds.has(s.id) || !updated.some((u) => u.id === s.id))
+      })
+      setEditingScheduleId(null)
+      window.dispatchEvent(new Event('schedule-updated'))
+    } catch (err) {
+      handleApiError(err, 'Failed to update schedule time')
+      fetchSchedules()
+    }
+  }, [fetchSchedules])
 
   if (isLoading) {
     return (
@@ -132,6 +159,7 @@ export function SchedulePanel() {
             const relTime = schedule.status === 'pending'
               ? getRelativeTime(schedule.scheduled_at)
               : null
+            const isPending = schedule.status === 'pending'
 
             return (
               <li
@@ -156,7 +184,7 @@ export function SchedulePanel() {
 
                   {/* Title + duration */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
+                    <p className="text-sm font-medium line-clamp-2">
                       {schedule.title || schedule.query || schedule.url}
                     </p>
                     <div className="flex items-center gap-2">
@@ -175,7 +203,7 @@ export function SchedulePanel() {
                   )}
                 </div>
 
-                {/* Row 2: datetime + status badge + delete */}
+                {/* Row 2: datetime + status badge + actions */}
                 <div className="flex items-center gap-2 mt-1.5 ml-16">
                   <span className="text-xs text-muted-foreground">
                     {formatDatetime(schedule.scheduled_at, timezone)}
@@ -184,15 +212,78 @@ export function SchedulePanel() {
                     {config.label}
                   </span>
                   <div className="flex-1" />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-destructive hover:text-destructive shrink-0"
-                    onClick={() => handleDelete(schedule.id)}
-                    title="Delete schedule"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
+                  {isPending ? (
+                    editingScheduleId === schedule.id ? (
+                      <Popover
+                        open
+                        onOpenChange={(open) => {
+                          if (!open) setEditingScheduleId(null)
+                        }}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 shrink-0"
+                          >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-auto p-3">
+                          <ScheduleTimePicker
+                            songCount={1}
+                            totalDuration={schedule.duration}
+                            initialTime={schedule.scheduled_at}
+                            submitLabel="Update"
+                            timezone={timezone}
+                            onSchedule={(scheduledAt) => handleUpdateTime(schedule.id, scheduledAt)}
+                            onCancel={() => setEditingScheduleId(null)}
+                          />
+                          {schedule.group_id && (
+                            <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">
+                              All pending items in this group will shift together.
+                            </p>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 shrink-0"
+                            title="Schedule options"
+                          >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36">
+                          <DropdownMenuItem onClick={() => setEditingScheduleId(schedule.id)}>
+                            <Pencil className="h-3.5 w-3.5 mr-2" />
+                            Edit time
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => handleDelete(schedule.id)}
+                          >
+                            <X className="h-3.5 w-3.5 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-destructive hover:text-destructive shrink-0"
+                      onClick={() => handleDelete(schedule.id)}
+                      title="Delete schedule"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </li>
             )

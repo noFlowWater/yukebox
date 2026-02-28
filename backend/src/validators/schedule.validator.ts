@@ -18,3 +18,10 @@ export const createScheduleSchema = z.object({
 )
 
 export type CreateScheduleInput = z.infer<typeof createScheduleSchema>
+
+export const updateScheduleTimeSchema = z.object({
+  scheduled_at: z.string().refine(
+    (val) => !isNaN(Date.parse(val)),
+    { message: 'Must be a valid ISO datetime string' },
+  ),
+})

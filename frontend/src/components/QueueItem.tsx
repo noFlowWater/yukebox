@@ -126,7 +126,7 @@ export function QueueItem({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => onPlay(item.id)}
+                onClick={() => isActive ? onPause() : onPlay(item.id)}
                 title="Resume"
               >
                 <Play className="h-4 w-4" />

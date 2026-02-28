@@ -117,10 +117,10 @@ export default function Home() {
         duration: item.duration,
         speaker_id: activeSpeakerId ?? undefined,
       })
-      toast.success(`Added to queue: ${result.title}`)
+      toast.success(`Added to Up Next: ${result.title}`)
       window.dispatchEvent(new Event('queue-updated'))
     } catch (err) {
-      handleApiError(err, 'Failed to add to queue')
+      handleApiError(err, 'Failed to add')
     }
   }, [activeSpeakerId])
 
@@ -130,10 +130,10 @@ export default function Home() {
         items.map((i) => ({ url: i.url, title: i.title, thumbnail: i.thumbnail, duration: i.duration })),
         activeSpeakerId ?? undefined,
       )
-      toast.success(`Added ${result.length} song${result.length !== 1 ? 's' : ''} to queue`)
+      toast.success(`Added ${result.length} song${result.length !== 1 ? 's' : ''} to Up Next`)
       window.dispatchEvent(new Event('queue-updated'))
     } catch (err) {
-      handleApiError(err, 'Failed to add to queue')
+      handleApiError(err, 'Failed to add')
     }
   }, [activeSpeakerId])
 
@@ -353,7 +353,7 @@ export default function Home() {
         )}
         <Tabs value={activeTab} onValueChange={setActiveTab} className={searchMode ? 'hidden' : undefined}>
           <TabsList className="w-full">
-            <TabsTrigger value="queue" className="flex-1">Queue</TabsTrigger>
+            <TabsTrigger value="queue" className="flex-1">Up Next</TabsTrigger>
             <TabsTrigger value="schedule" className="flex-1">Schedule</TabsTrigger>
             <TabsTrigger value="favorites" className="flex-1">
               <Heart className="h-3.5 w-3.5 mr-1" />

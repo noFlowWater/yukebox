@@ -111,7 +111,7 @@ export function SpeakerBar() {
           {queueCount > 0 && (
             <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">
               <ListMusic className="h-3 w-3" />
-              {queueCount} queued
+              {queueCount} up next
             </span>
           )}
           {scheduleCount > 0 && (

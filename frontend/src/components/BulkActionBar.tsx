@@ -50,7 +50,7 @@ export function BulkActionBar({
         onClick={onQueueAll}
       >
         <ListPlus className="h-3.5 w-3.5 mr-1" />
-        Queue All
+        Add All
       </Button>
       <Popover open={scheduleOpen} onOpenChange={onScheduleOpenChange}>
         <PopoverTrigger asChild>

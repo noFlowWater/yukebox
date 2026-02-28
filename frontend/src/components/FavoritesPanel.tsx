@@ -194,8 +194,8 @@ export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSched
                         size="icon"
                         className="h-7 w-7"
                         onClick={() => onAddToQueue({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration })}
-                        aria-label="Add to queue"
-                        title="Add to queue"
+                        aria-label="Add to Up Next"
+                        title="Add to Up Next"
                       >
                         <ListPlus className="h-4 w-4" />
                       </Button>

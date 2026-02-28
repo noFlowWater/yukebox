@@ -188,8 +188,8 @@ export function SearchResults({
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => onAddToQueue(item)}
-                      aria-label="Add to queue"
-                      title="Add to queue"
+                      aria-label="Add to Up Next"
+                      title="Add to Up Next"
                     >
                       <ListPlus className="h-4 w-4" />
                     </Button>

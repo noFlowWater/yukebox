@@ -85,7 +85,7 @@ export function QueueItem({
           </p>
           {isPlaying && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-success/20 text-success">
-              playing
+              Now playing
             </span>
           )}
           {isPaused && (

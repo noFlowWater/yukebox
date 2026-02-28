@@ -16,7 +16,7 @@ const POLL_INTERVAL = 3000
 
 const MODES: PlaybackMode[] = ['sequential', 'repeat-all', 'repeat-one', 'shuffle']
 const MODE_CONFIG: Record<PlaybackMode, { icon: typeof ArrowRight; label: string }> = {
-  sequential: { icon: ArrowRight, label: 'Sequential' },
+  sequential: { icon: ArrowRight, label: 'In order' },
   'repeat-all': { icon: Repeat, label: 'Repeat all' },
   'repeat-one': { icon: Repeat1, label: 'Repeat one' },
   shuffle: { icon: Shuffle, label: 'Shuffle' },
@@ -216,7 +216,7 @@ export function QueuePanel() {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
         <ListMusic className="h-8 w-8 mb-2" />
-        <p className="text-sm">Queue is empty</p>
+        <p className="text-sm">Nothing up next</p>
       </div>
     )
   }
@@ -231,7 +231,7 @@ export function QueuePanel() {
             size="sm"
             className="text-destructive hover:text-destructive"
             onClick={handleClearAll}
-            title="Clear pending"
+            title="Clear upcoming"
           >
             <Trash2 className="h-4 w-4 mr-1.5" />
             Clear all

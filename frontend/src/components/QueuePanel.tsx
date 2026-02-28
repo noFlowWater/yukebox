@@ -1,23 +1,23 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { ListMusic, GripVertical, Pause, Play, Square, Shuffle, Trash2, X } from 'lucide-react'
+import { ListMusic, Shuffle, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import Image from 'next/image'
-import { formatDuration, handleApiError } from '@/lib/utils'
+import { QueueItem } from '@/components/QueueItem'
+import { handleApiError } from '@/lib/utils'
 import * as api from '@/lib/api'
 import { useSpeaker } from '@/contexts/SpeakerContext'
 import { useStatus } from '@/contexts/StatusContext'
-import type { QueueItem } from '@/types'
+import type { QueueItem as QueueItemType } from '@/types'
 
 const POLL_INTERVAL = 3000
 
 export function QueuePanel() {
   const { activeSpeakerId } = useSpeaker()
   const { status: playbackStatus } = useStatus()
-  const [queue, setQueue] = useState<QueueItem[]>([])
+  const [queue, setQueue] = useState<QueueItemType[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [overIndex, setOverIndex] = useState<number | null>(null)
@@ -225,149 +225,25 @@ export function QueuePanel() {
 
       <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden">
         <ul className="flex flex-col gap-1">
-          {queue.map((item, index) => {
-            const isActive = item.status === 'playing'
-            const isPlaying = isActive && !playbackStatus.paused
-            const isPaused = item.status === 'paused' || (isActive && playbackStatus.paused)
-
-            return (
-              <li
-                key={item.id}
-                draggable={!isPlaying && !isPaused}
-                onDragStart={isPlaying || isPaused ? undefined : (e) => handleDragStart(e, index)}
-                onDragOver={isPlaying || isPaused ? undefined : (e) => handleDragOver(e, index)}
-                onDragLeave={isPlaying || isPaused ? undefined : handleDragLeave}
-                onDrop={isPlaying || isPaused ? undefined : (e) => handleDrop(e, index)}
-                onDragEnd={isPlaying || isPaused ? undefined : handleDragEnd}
-                className={`flex items-start gap-3 p-2 rounded-lg transition-colors min-w-0 ${
-                  isPlaying
-                    ? 'bg-success/10 border border-success/30'
-                    : isPaused
-                      ? 'bg-warning/5 border border-warning/20'
-                      : `cursor-grab active:cursor-grabbing hover:bg-muted/50 ${
-                          dragIndex === index ? 'opacity-30' : ''
-                        } ${
-                          overIndex === index && dragIndex !== index
-                            ? 'border-t-2 border-primary'
-                            : 'border-t-2 border-transparent'
-                        }`
-                }`}
-              >
-                {/* Drag handle or status indicator */}
-                {isPlaying ? (
-                  <span className="inline-block w-4 h-4 shrink-0 flex items-center justify-center self-center">
-                    <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                  </span>
-                ) : isPaused ? (
-                  <Pause className="h-4 w-4 text-warning shrink-0 self-center" />
-                ) : (
-                  <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 self-center" />
-                )}
-
-                {/* Thumbnail */}
-                <Image
-                  src={item.thumbnail}
-                  alt={item.title}
-                  width={56}
-                  height={40}
-                  className="h-10 w-14 rounded object-cover shrink-0 bg-muted pointer-events-none self-center"
-                />
-
-                {/* Title + Duration/Status + Actions */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium line-clamp-2">{item.title}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <p className="text-xs text-muted-foreground">
-                      {formatDuration(item.duration)}
-                    </p>
-                    {isPlaying && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-success/20 text-success">
-                        playing
-                      </span>
-                    )}
-                    {isPaused && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-warning/20 text-warning">
-                        paused
-                      </span>
-                    )}
-                    <div className="flex-1" />
-
-                    {/* Actions — playing item: pause + stop */}
-                    {isPlaying && (
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={handlePause}
-                          title="Pause"
-                        >
-                          <Pause className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={handleStop}
-                          title="Stop"
-                        >
-                          <Square className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Actions — paused item: resume + remove */}
-                    {isPaused && (
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handlePlay(item.id)}
-                          title="Resume"
-                        >
-                          <Play className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => handleRemove(item.id)}
-                          title="Remove"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-
-                    {/* Actions — pending item: play + remove */}
-                    {!isPlaying && !isPaused && (
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handlePlay(item.id)}
-                          title="Play now"
-                        >
-                          <Play className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => handleRemove(item.id)}
-                          title="Remove"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </li>
-            )
-          })}
+          {queue.map((item, index) => (
+            <QueueItem
+              key={item.id}
+              item={item}
+              index={index}
+              playbackPaused={playbackStatus.paused}
+              isDragging={dragIndex === index}
+              isDragOver={overIndex === index && dragIndex !== index}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+              onPlay={handlePlay}
+              onPause={handlePause}
+              onStop={handleStop}
+              onRemove={handleRemove}
+            />
+          ))}
         </ul>
       </div>
     </div>

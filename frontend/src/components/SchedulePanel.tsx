@@ -184,7 +184,7 @@ export function SchedulePanel() {
 
                   {/* Title + duration */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
+                    <p className="text-sm font-medium line-clamp-2">
                       {schedule.title || schedule.query || schedule.url}
                     </p>
                     <div className="flex items-center gap-2">

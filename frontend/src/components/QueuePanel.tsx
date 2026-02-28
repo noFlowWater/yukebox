@@ -239,7 +239,7 @@ export function QueuePanel() {
                 onDragLeave={isPlaying || isPaused ? undefined : handleDragLeave}
                 onDrop={isPlaying || isPaused ? undefined : (e) => handleDrop(e, index)}
                 onDragEnd={isPlaying || isPaused ? undefined : handleDragEnd}
-                className={`flex items-center gap-3 p-2 rounded-lg transition-colors min-w-0 ${
+                className={`flex items-start gap-3 p-2 rounded-lg transition-colors min-w-0 ${
                   isPlaying
                     ? 'bg-success/10 border border-success/30'
                     : isPaused
@@ -255,13 +255,13 @@ export function QueuePanel() {
               >
                 {/* Drag handle or status indicator */}
                 {isPlaying ? (
-                  <span className="inline-block w-4 h-4 shrink-0 flex items-center justify-center">
+                  <span className="inline-block w-4 h-4 shrink-0 flex items-center justify-center self-center">
                     <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                   </span>
                 ) : isPaused ? (
-                  <Pause className="h-4 w-4 text-warning shrink-0" />
+                  <Pause className="h-4 w-4 text-warning shrink-0 self-center" />
                 ) : (
-                  <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 self-center" />
                 )}
 
                 {/* Thumbnail */}
@@ -270,13 +270,13 @@ export function QueuePanel() {
                   alt={item.title}
                   width={56}
                   height={40}
-                  className="h-10 w-14 rounded object-cover shrink-0 bg-muted pointer-events-none"
+                  className="h-10 w-14 rounded object-cover shrink-0 bg-muted pointer-events-none self-center"
                 />
 
-                {/* Title + Duration/Status */}
+                {/* Title + Duration/Status + Actions */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{item.title}</p>
-                  <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium line-clamp-2">{item.title}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
                     <p className="text-xs text-muted-foreground">
                       {formatDuration(item.duration)}
                     </p>
@@ -290,80 +290,81 @@ export function QueuePanel() {
                         paused
                       </span>
                     )}
+                    <div className="flex-1" />
+
+                    {/* Actions — playing item: pause + stop */}
+                    {isPlaying && (
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={handlePause}
+                          title="Pause"
+                        >
+                          <Pause className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={handleStop}
+                          title="Stop"
+                        >
+                          <Square className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Actions — paused item: resume + remove */}
+                    {isPaused && (
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handlePlay(item.id)}
+                          title="Resume"
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => handleRemove(item.id)}
+                          title="Remove"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Actions — pending item: play + remove */}
+                    {!isPlaying && !isPaused && (
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handlePlay(item.id)}
+                          title="Play now"
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          onClick={() => handleRemove(item.id)}
+                          title="Remove"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                {/* Actions — playing item: pause + stop */}
-                {isPlaying && (
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={handlePause}
-                      title="Pause"
-                    >
-                      <Pause className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={handleStop}
-                      title="Stop"
-                    >
-                      <Square className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                )}
-
-                {/* Actions — paused item: resume + remove */}
-                {isPaused && (
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => handlePlay(item.id)}
-                      title="Resume"
-                    >
-                      <Play className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={() => handleRemove(item.id)}
-                      title="Remove"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-
-                {/* Actions — pending item: play + remove */}
-                {!isPlaying && !isPaused && (
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => handlePlay(item.id)}
-                      title="Play now"
-                    >
-                      <Play className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      onClick={() => handleRemove(item.id)}
-                      title="Remove"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
               </li>
             )
           })}

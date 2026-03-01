@@ -11,6 +11,8 @@ design-scheme.md
 api-spec.md
 checklist.md
 git-convention.md
+bt-spec.md
+AGENTS.md
 
 # Claude Code
 .claude/
@@ -40,3 +42,4 @@ playwright-report/
 # OS
 .DS_Store
 Thumbs.db
+.gitnexus

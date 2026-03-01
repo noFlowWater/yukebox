@@ -157,11 +157,11 @@ EOF
   echo "Created .env with auto-detected settings."
 fi
 
-# 6. Build & run
+# 6. Pull & run
 echo ""
-read -rp "Run 'docker compose up -d --build' now? [Y/n] " yn
+read -rp "Pull images and start YukeBox? [Y/n] " yn
 if [[ ! "$yn" =~ ^[Nn] ]]; then
-  docker compose up -d --build
+  docker compose pull && docker compose up -d
   echo ""
   echo "YukeBox is running at http://localhost:${PORT:-3000}"
   echo "Open in your browser to get started."

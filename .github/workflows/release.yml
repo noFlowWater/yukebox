@@ -41,7 +41,7 @@ jobs:
         with:
           images: |
             ghcr.io/noflowwater/yukebox-${{ matrix.image-suffix }}
-            noflowwater/yukebox-${{ matrix.image-suffix }}
+            noyusu/yukebox-${{ matrix.image-suffix }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}

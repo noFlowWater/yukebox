@@ -161,6 +161,37 @@ describe('Queue API', () => {
       expect(response.statusCode).toBe(400)
       expect(response.json().error.code).toBe('VALIDATION_ERROR')
     })
+
+    it('should return 500 QUEUE_ADD_ERROR when engine.addToQueue rejects', async () => {
+      mockEngine.addToQueue.mockRejectedValueOnce(new Error('Playback engine crashed'))
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/queue',
+        payload: { url: 'https://youtube.com/watch?v=err' },
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(500)
+      const body = response.json()
+      expect(body.success).toBe(false)
+      expect(body.error.code).toBe('QUEUE_ADD_ERROR')
+    })
+
+    it('should return 500 QUEUE_ADD_ERROR for non-existent speaker', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/queue',
+        payload: { url: 'https://youtube.com/watch?v=abc', speaker_id: 999 },
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(500)
+      const body = response.json()
+      expect(body.success).toBe(false)
+      expect(body.error.code).toBe('QUEUE_ADD_ERROR')
+      expect(body.error.message).toContain('Speaker not found')
+    })
   })
 
   describe('PATCH /api/queue/:id/position', () => {
@@ -240,6 +271,108 @@ describe('Queue API', () => {
     })
   })
 
+  describe('POST /api/queue/bulk', () => {
+    it('should return 201 with bulk added items', async () => {
+      mockEngine.addToQueueBulk.mockResolvedValueOnce([
+        {
+          id: 10,
+          url: 'https://youtube.com/watch?v=1',
+          title: 'Song 1',
+          thumbnail: 'https://thumb1.jpg',
+          duration: 180,
+          position: 0,
+          status: 'pending',
+          paused_position: null,
+          speaker_id: 1,
+          schedule_id: null,
+          added_at: new Date().toISOString(),
+        },
+        {
+          id: 11,
+          url: 'https://youtube.com/watch?v=2',
+          title: 'Song 2',
+          thumbnail: 'https://thumb2.jpg',
+          duration: 240,
+          position: 1,
+          status: 'pending',
+          paused_position: null,
+          speaker_id: 1,
+          schedule_id: null,
+          added_at: new Date().toISOString(),
+        },
+      ])
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/queue/bulk',
+        payload: {
+          urls: [
+            'https://youtube.com/watch?v=1',
+            'https://youtube.com/watch?v=2',
+          ],
+        },
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(201)
+      const body = response.json()
+      expect(body.success).toBe(true)
+      expect(body.data).toHaveLength(2)
+    })
+
+    it('should return 201 with empty array when all items fail to resolve', async () => {
+      mockEngine.addToQueueBulk.mockResolvedValueOnce([])
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/queue/bulk',
+        payload: {
+          items: [
+            { url: 'https://youtube.com/watch?v=bad1' },
+          ],
+        },
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(201)
+      const body = response.json()
+      expect(body.success).toBe(true)
+      expect(body.data).toEqual([])
+    })
+
+    it('should return 400 when neither items nor urls provided', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/queue/bulk',
+        payload: {},
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(400)
+      const body = response.json()
+      expect(body.success).toBe(false)
+      expect(body.error.code).toBe('VALIDATION_ERROR')
+    })
+
+    it('should return 500 QUEUE_ADD_ERROR when engine rejects', async () => {
+      mockEngine.addToQueueBulk.mockRejectedValueOnce(new Error('Bulk insert failed'))
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/queue/bulk',
+        payload: {
+          urls: ['https://youtube.com/watch?v=err'],
+        },
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(500)
+      const body = response.json()
+      expect(body.success).toBe(false)
+      expect(body.error.code).toBe('QUEUE_ADD_ERROR')
+    })
+  })
+
   describe('DELETE /api/queue/:id', () => {
     it('should return 404 for non-existent item', async () => {
       const response = await app.inject({
@@ -259,6 +392,21 @@ describe('Queue API', () => {
       })
 
       expect(response.statusCode).toBe(400)
+    })
+  })
+
+  describe('Auth edge cases', () => {
+    it('should return 401 for malformed JWT token', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/queue',
+        headers: { cookie: 'access_token=not.a.valid.jwt.token' },
+      })
+
+      expect(response.statusCode).toBe(401)
+      const body = response.json()
+      expect(body.success).toBe(false)
+      expect(body.error.code).toBe('UNAUTHORIZED')
     })
   })
 })

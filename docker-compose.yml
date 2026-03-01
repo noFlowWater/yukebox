@@ -1,5 +1,6 @@
 services:
   backend:
+    # image: ghcr.io/noflowwater/yukebox-backend:latest
     build: ./backend
     restart: unless-stopped
     environment:
@@ -25,6 +26,7 @@ services:
       - apparmor:unconfined
 
   frontend:
+    # image: ghcr.io/noflowwater/yukebox-frontend:latest
     build:
       context: ./frontend
       args:

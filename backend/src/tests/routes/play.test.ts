@@ -193,4 +193,58 @@ describe('POST /api/play', () => {
       expect.not.objectContaining({ speaker_id: expect.any(Number) }),
     )
   })
+
+  it('should return 500 with "No results found" when query yields nothing', async () => {
+    const { play } = await import('../../services/play.service.js')
+    vi.mocked(play).mockRejectedValueOnce(new Error('No results found'))
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/play',
+      payload: { query: 'xyznonexistent' },
+      headers: { cookie: authCookie },
+    })
+
+    expect(response.statusCode).toBe(500)
+    const body = response.json()
+    expect(body.success).toBe(false)
+    expect(body.error.code).toBe('PLAY_ERROR')
+    expect(body.error.message).toContain('No results found')
+  })
+
+  it('should return 500 with "No speaker available" when no speaker registered', async () => {
+    const { play } = await import('../../services/play.service.js')
+    vi.mocked(play).mockRejectedValueOnce(new Error('No speaker available'))
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/play',
+      payload: { url: 'https://youtube.com/watch?v=abc' },
+      headers: { cookie: authCookie },
+    })
+
+    expect(response.statusCode).toBe(500)
+    const body = response.json()
+    expect(body.success).toBe(false)
+    expect(body.error.code).toBe('PLAY_ERROR')
+    expect(body.error.message).toContain('No speaker available')
+  })
+
+  it('should return 500 with resolve error message for bad URL', async () => {
+    const { play } = await import('../../services/play.service.js')
+    vi.mocked(play).mockRejectedValueOnce(new Error('Failed to resolve URL: yt-dlp timeout'))
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/play',
+      payload: { url: 'https://youtube.com/watch?v=broken' },
+      headers: { cookie: authCookie },
+    })
+
+    expect(response.statusCode).toBe(500)
+    const body = response.json()
+    expect(body.success).toBe(false)
+    expect(body.error.code).toBe('PLAY_ERROR')
+    expect(body.error.message).toContain('Failed to resolve URL')
+  })
 })

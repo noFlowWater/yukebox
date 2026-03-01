@@ -7,6 +7,7 @@ import { setupAuth, wrapWithAuth, getAuthCookie } from '../helpers/auth.js'
 // Mock yt-dlp service
 vi.mock('../../services/ytdlp.service.js', () => ({
   search: vi.fn(),
+  resolve: vi.fn(),
 }))
 
 function buildTestApp() {
@@ -135,5 +136,118 @@ describe('GET /api/search', () => {
     })
 
     expect(search).toHaveBeenCalledWith('test', 5)
+  })
+
+  it('should return 200 with empty data array when no results found', async () => {
+    const { search } = await import('../../services/ytdlp.service.js')
+    vi.mocked(search).mockResolvedValueOnce([])
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/search?query=xyznonexistent',
+      headers: { cookie: authCookie },
+    })
+
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.success).toBe(true)
+    expect(body.data).toEqual([])
+  })
+})
+
+describe('POST /api/resolve', () => {
+  let app: ReturnType<typeof buildTestApp>
+  let authCookie: string
+
+  beforeAll(async () => {
+    app = buildTestApp()
+    await app.ready()
+    authCookie = await getAuthCookie()
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should return 401 without auth', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/resolve',
+      payload: { url: 'https://youtube.com/watch?v=abc' },
+    })
+    expect(response.statusCode).toBe(401)
+  })
+
+  it('should return 200 with resolved track info', async () => {
+    const { resolve } = await import('../../services/ytdlp.service.js')
+    vi.mocked(resolve).mockResolvedValueOnce({
+      url: 'https://youtube.com/watch?v=abc',
+      title: 'Test Song',
+      thumbnail: 'https://img.youtube.com/vi/abc/0.jpg',
+      duration: 240,
+      audioUrl: 'https://audio.url/stream',
+    })
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/resolve',
+      payload: { url: 'https://youtube.com/watch?v=abc' },
+      headers: { cookie: authCookie },
+    })
+
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.success).toBe(true)
+    expect(body.data.title).toBe('Test Song')
+    expect(body.data.duration).toBe(240)
+  })
+
+  it('should return 400 for invalid URL format', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/resolve',
+      payload: { url: 'not-a-url' },
+      headers: { cookie: authCookie },
+    })
+
+    expect(response.statusCode).toBe(400)
+    const body = response.json()
+    expect(body.success).toBe(false)
+    expect(body.error.code).toBe('VALIDATION_ERROR')
+  })
+
+  it('should return 400 for missing url field', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/resolve',
+      payload: {},
+      headers: { cookie: authCookie },
+    })
+
+    expect(response.statusCode).toBe(400)
+    const body = response.json()
+    expect(body.success).toBe(false)
+    expect(body.error.code).toBe('VALIDATION_ERROR')
+  })
+
+  it('should return 500 RESOLVE_ERROR when yt-dlp fails', async () => {
+    const { resolve } = await import('../../services/ytdlp.service.js')
+    vi.mocked(resolve).mockRejectedValueOnce(new Error('Failed to resolve URL: yt-dlp timeout'))
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/resolve',
+      payload: { url: 'https://youtube.com/watch?v=bad' },
+      headers: { cookie: authCookie },
+    })
+
+    expect(response.statusCode).toBe(500)
+    const body = response.json()
+    expect(body.success).toBe(false)
+    expect(body.error.code).toBe('RESOLVE_ERROR')
   })
 })

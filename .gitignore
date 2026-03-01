@@ -4,15 +4,7 @@ frontend/.env.local
 
 # Internal docs (local development only)
 CLAUDE.md
-prd.md
-dev.md
-tasks.md
-design-scheme.md
-api-spec.md
-checklist.md
-git-convention.md
-bt-spec.md
-AGENTS.md
+.internal/
 
 # Claude Code
 .claude/

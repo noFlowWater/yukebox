@@ -4,6 +4,7 @@ frontend/.env.local
 
 # Internal docs (local development only)
 CLAUDE.md
+AGENTS.md
 .internal/
 
 # Claude Code

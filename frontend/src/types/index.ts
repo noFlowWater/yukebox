@@ -153,6 +153,17 @@ export interface Settings {
   bt_scan_duration: number
 }
 
+// YouTube Details
+export interface YoutubeDetails {
+  title: string
+  channel: string
+  view_count: number
+  upload_date: string
+  description: string
+  thumbnail_hq: string
+  duration: number
+}
+
 // Favorite
 export interface Favorite {
   id: number

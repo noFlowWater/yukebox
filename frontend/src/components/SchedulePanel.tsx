@@ -30,7 +30,11 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   failed: { label: 'failed', className: 'bg-destructive/20 text-destructive' },
 }
 
-export function SchedulePanel() {
+interface SchedulePanelProps {
+  onOpenDetail: (item: { url: string; title: string; thumbnail: string; duration: number }) => void
+}
+
+export function SchedulePanel({ onOpenDetail }: SchedulePanelProps) {
   const { activeSpeakerId } = useSpeaker()
   const { status: playbackStatus } = useStatus()
   const { timezone } = useAccessibility()
@@ -169,13 +173,32 @@ export function SchedulePanel() {
                 <div className="flex items-start gap-2">
                   {/* Thumbnail */}
                   {schedule.thumbnail ? (
-                    <Image
-                      src={schedule.thumbnail}
-                      alt={schedule.title || ''}
-                      width={56}
-                      height={40}
-                      className="h-10 w-14 rounded object-cover shrink-0 bg-muted pointer-events-none"
-                    />
+                    schedule.url ? (
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className="shrink-0 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => onOpenDetail({ url: schedule.url, title: schedule.title, thumbnail: schedule.thumbnail, duration: schedule.duration })}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail({ url: schedule.url, title: schedule.title, thumbnail: schedule.thumbnail, duration: schedule.duration }) } }}
+                        aria-label={`View details: ${schedule.title}`}
+                      >
+                        <Image
+                          src={schedule.thumbnail}
+                          alt={schedule.title || ''}
+                          width={56}
+                          height={40}
+                          className="h-10 w-14 rounded object-cover bg-muted"
+                        />
+                      </div>
+                    ) : (
+                      <Image
+                        src={schedule.thumbnail}
+                        alt={schedule.title || ''}
+                        width={56}
+                        height={40}
+                        className="h-10 w-14 rounded object-cover shrink-0 bg-muted"
+                      />
+                    )
                   ) : (
                     <div className="h-10 w-14 rounded bg-muted flex items-center justify-center shrink-0">
                       <Music className="h-4 w-4 text-muted-foreground" />
@@ -184,9 +207,21 @@ export function SchedulePanel() {
 
                   {/* Title + duration */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium line-clamp-2">
-                      {schedule.title || schedule.query || schedule.url}
-                    </p>
+                    {schedule.url ? (
+                      <p
+                        role="button"
+                        tabIndex={0}
+                        className="text-sm font-medium line-clamp-2 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                        onClick={() => onOpenDetail({ url: schedule.url, title: schedule.title, thumbnail: schedule.thumbnail, duration: schedule.duration })}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail({ url: schedule.url, title: schedule.title, thumbnail: schedule.thumbnail, duration: schedule.duration }) } }}
+                      >
+                        {schedule.title || schedule.query || schedule.url}
+                      </p>
+                    ) : (
+                      <p className="text-sm font-medium line-clamp-2">
+                        {schedule.title || schedule.query || schedule.url}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2">
                       {schedule.duration > 0 && (
                         <span className="text-xs text-muted-foreground">

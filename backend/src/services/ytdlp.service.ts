@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import type { TrackInfo, SearchResult } from '../types/ytdlp.js'
+import type { TrackInfo, SearchResult, VideoDetails } from '../types/ytdlp.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -45,6 +45,71 @@ export async function resolve(url: string): Promise<TrackInfo> {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     throw new Error(`Failed to resolve URL: ${message}`)
+  }
+}
+
+// In-memory cache for video details (TTL: 10 minutes, max 200 entries)
+const detailsCache = new Map<string, { data: VideoDetails; expires: number }>()
+const DETAILS_CACHE_TTL = 10 * 60 * 1000
+const DETAILS_CACHE_MAX = 200
+
+function getCachedDetails(url: string): VideoDetails | null {
+  const entry = detailsCache.get(url)
+  if (!entry) return null
+  if (Date.now() > entry.expires) {
+    detailsCache.delete(url)
+    return null
+  }
+  return entry.data
+}
+
+function setCachedDetails(url: string, data: VideoDetails): void {
+  if (detailsCache.size >= DETAILS_CACHE_MAX) {
+    const oldest = detailsCache.keys().next().value
+    if (oldest !== undefined) detailsCache.delete(oldest)
+  }
+  detailsCache.set(url, { data, expires: Date.now() + DETAILS_CACHE_TTL })
+}
+
+export async function getVideoDetails(url: string): Promise<VideoDetails> {
+  const cached = getCachedDetails(url)
+  if (cached) return cached
+
+  try {
+    const { stdout } = await execFileAsync('yt-dlp', [
+      '--dump-json',
+      '--no-playlist',
+      '-f', 'bestaudio/best',
+      url,
+    ], { timeout: 15000 })
+
+    const raw = JSON.parse(stdout.trim())
+
+    const uploadDate = raw.upload_date
+      ? `${raw.upload_date.slice(0, 4)}-${raw.upload_date.slice(4, 6)}-${raw.upload_date.slice(6, 8)}`
+      : ''
+
+    const webpageUrl: string = raw.webpage_url || url
+    const idMatch = webpageUrl.match(YT_VIDEO_ID_PATTERN)
+    const thumbnailHq = idMatch
+      ? `https://i.ytimg.com/vi/${idMatch[1]}/maxresdefault.jpg`
+      : raw.thumbnail || ''
+
+    const details: VideoDetails = {
+      title: raw.title || '',
+      channel: raw.channel || raw.uploader || '',
+      view_count: raw.view_count ?? 0,
+      upload_date: uploadDate,
+      description: raw.description || '',
+      thumbnail_hq: thumbnailHq,
+      duration: raw.duration ?? 0,
+    }
+
+    setCachedDetails(url, details)
+    return details
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    throw new Error(`Failed to get video details: ${message}`)
   }
 }
 

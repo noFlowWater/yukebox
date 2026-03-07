@@ -22,9 +22,10 @@ interface FavoritesPanelProps {
   onAddToQueue: (item: SearchResult) => void
   onBulkAddToQueue: (items: SearchResult[]) => void
   onSchedule: (items: SearchResult[], scheduledAt: string) => void
+  onOpenDetail: (item: SearchResult) => void
 }
 
-export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSchedule }: FavoritesPanelProps) {
+export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSchedule, onOpenDetail }: FavoritesPanelProps) {
   const { timezone } = useAccessibility()
   const [favorites, setFavorites] = useState<Favorite[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -161,18 +162,35 @@ export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSched
                   className="self-center"
                 />
 
-                {/* Thumbnail */}
-                <Image
-                  src={item.thumbnail}
-                  alt={item.title}
-                  width={56}
-                  height={40}
-                  className="h-10 w-14 rounded object-cover shrink-0 bg-muted self-center"
-                />
+                {/* Thumbnail — clickable */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="shrink-0 self-center cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration })}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }) } }}
+                  aria-label={`View details: ${item.title}`}
+                >
+                  <Image
+                    src={item.thumbnail}
+                    alt={item.title}
+                    width={56}
+                    height={40}
+                    className="h-10 w-14 rounded object-cover bg-muted"
+                  />
+                </div>
 
                 {/* Title + Duration + Actions */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium line-clamp-2">{item.title}</p>
+                  <p
+                    role="button"
+                    tabIndex={0}
+                    className="text-sm font-medium line-clamp-2 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                    onClick={() => onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration })}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }) } }}
+                  >
+                    {item.title}
+                  </p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <p className="text-xs text-muted-foreground">
                       {formatDuration(item.duration)}

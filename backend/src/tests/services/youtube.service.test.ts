@@ -136,3 +136,122 @@ describe('getVideoDetails', () => {
     await expect(getVideoDetails('https://youtube.com/watch?v=bad')).rejects.toThrow('Failed to get video details')
   })
 })
+
+describe('getPinnedComment', () => {
+  beforeEach(() => {
+    vi.resetModules()
+  })
+
+  function setupPromisify() {
+    return import('node:util').then(({ promisify }) => {
+      vi.mocked(promisify).mockImplementation((fn: unknown) => {
+        return (...fnArgs: unknown[]) => {
+          return new Promise((resolve, reject) => {
+            (fn as (...args: unknown[]) => void)(...fnArgs, (err: Error | null, result: unknown) => {
+              if (err) reject(err)
+              else resolve(result)
+            })
+          })
+        }
+      })
+    })
+  }
+
+  it('should return pinned comment when found', async () => {
+    const { execFile } = await import('node:child_process')
+    const mockExecFile = vi.mocked(execFile)
+
+    const dumpJson = JSON.stringify({
+      title: 'Test Video',
+      comments: [
+        { author: 'Creator', text: 'Timestamps:\n0:00 Intro\n1:00 Main', like_count: 500, is_pinned: true },
+        { author: 'Other', text: 'Great video!', like_count: 10, is_pinned: false },
+      ],
+    })
+
+    mockExecFile.mockImplementation((...args: unknown[]) => {
+      const callback = args[args.length - 1] as (err: Error | null, result: { stdout: string; stderr: string }) => void
+      if (typeof callback === 'function') {
+        callback(null, { stdout: dumpJson, stderr: '' })
+      }
+      return undefined as never
+    })
+
+    await setupPromisify()
+
+    const { getPinnedComment } = await import('../../services/ytdlp.service.js')
+    const result = await getPinnedComment('https://youtube.com/watch?v=pinned11111')
+
+    expect(result).not.toBeNull()
+    expect(result!.author).toBe('Creator')
+    expect(result!.text).toBe('Timestamps:\n0:00 Intro\n1:00 Main')
+    expect(result!.like_count).toBe(500)
+  })
+
+  it('should return null when no pinned comment exists', async () => {
+    const { execFile } = await import('node:child_process')
+    const mockExecFile = vi.mocked(execFile)
+
+    const dumpJson = JSON.stringify({
+      title: 'Test Video',
+      comments: [
+        { author: 'User1', text: 'Nice!', like_count: 5, is_pinned: false },
+      ],
+    })
+
+    mockExecFile.mockImplementation((...args: unknown[]) => {
+      const callback = args[args.length - 1] as (err: Error | null, result: { stdout: string; stderr: string }) => void
+      if (typeof callback === 'function') {
+        callback(null, { stdout: dumpJson, stderr: '' })
+      }
+      return undefined as never
+    })
+
+    await setupPromisify()
+
+    const { getPinnedComment } = await import('../../services/ytdlp.service.js')
+    const result = await getPinnedComment('https://youtube.com/watch?v=nopin111111')
+
+    expect(result).toBeNull()
+  })
+
+  it('should return null when comments array is undefined', async () => {
+    const { execFile } = await import('node:child_process')
+    const mockExecFile = vi.mocked(execFile)
+
+    const dumpJson = JSON.stringify({ title: 'Test Video' })
+
+    mockExecFile.mockImplementation((...args: unknown[]) => {
+      const callback = args[args.length - 1] as (err: Error | null, result: { stdout: string; stderr: string }) => void
+      if (typeof callback === 'function') {
+        callback(null, { stdout: dumpJson, stderr: '' })
+      }
+      return undefined as never
+    })
+
+    await setupPromisify()
+
+    const { getPinnedComment } = await import('../../services/ytdlp.service.js')
+    const result = await getPinnedComment('https://youtube.com/watch?v=nocomm11111')
+
+    expect(result).toBeNull()
+  })
+
+  it('should throw on yt-dlp process error', async () => {
+    const { execFile } = await import('node:child_process')
+    const mockExecFile = vi.mocked(execFile)
+
+    mockExecFile.mockImplementation((...args: unknown[]) => {
+      const callback = args[args.length - 1] as (err: Error | null, result: { stdout: string; stderr: string }) => void
+      if (typeof callback === 'function') {
+        callback(new Error('Command failed'), { stdout: '', stderr: 'ERROR' })
+      }
+      return undefined as never
+    })
+
+    await setupPromisify()
+
+    const { getPinnedComment } = await import('../../services/ytdlp.service.js')
+    await expect(getPinnedComment('https://youtube.com/watch?v=bad')).rejects.toThrow('Failed to get pinned comment')
+  })
+})

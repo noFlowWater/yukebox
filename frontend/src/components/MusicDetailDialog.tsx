@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
-import { Play, ListPlus, Clock, Heart, ExternalLink, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
+import { Play, ListPlus, Clock, Heart, ExternalLink, RefreshCw, ChevronDown, ChevronUp, Pin, ThumbsUp } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -16,7 +16,7 @@ import { ScheduleTimePicker } from '@/components/ScheduleTimePicker'
 import { formatDuration, handleApiError } from '@/lib/utils'
 import { useAccessibility } from '@/contexts/AccessibilityContext'
 import * as api from '@/lib/api'
-import type { SearchResult, YoutubeDetails } from '@/types'
+import type { SearchResult, YoutubeDetails, PinnedComment } from '@/types'
 
 interface MusicDetailDialogProps {
   open: boolean
@@ -33,6 +33,23 @@ interface MusicDetailDialogProps {
 // Session-level cache for YouTube details (max 100 entries)
 const detailsCache = new Map<string, YoutubeDetails>()
 const DETAILS_CACHE_MAX = 100
+
+// Session-level cache for pinned comments (max 100 entries)
+const pinnedCache = new Map<string, PinnedComment | null>()
+const PINNED_CACHE_MAX = 100
+
+function getCachedPinned(url: string): { hit: boolean; data: PinnedComment | null } {
+  if (!pinnedCache.has(url)) return { hit: false, data: null }
+  return { hit: true, data: pinnedCache.get(url) ?? null }
+}
+
+function setCachedPinned(url: string, data: PinnedComment | null): void {
+  if (pinnedCache.size >= PINNED_CACHE_MAX) {
+    const oldest = pinnedCache.keys().next().value
+    if (oldest !== undefined) pinnedCache.delete(oldest)
+  }
+  pinnedCache.set(url, data)
+}
 
 function getCachedDetails(url: string): YoutubeDetails | undefined {
   return detailsCache.get(url)
@@ -66,7 +83,12 @@ export function MusicDetailDialog({
   const [descExpanded, setDescExpanded] = useState(false)
   const [descOverflows, setDescOverflows] = useState(false)
   const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [pinnedComment, setPinnedComment] = useState<PinnedComment | null>(null)
+  const [pinnedLoading, setPinnedLoading] = useState(false)
+  const [pinnedExpanded, setPinnedExpanded] = useState(false)
+  const [pinnedOverflows, setPinnedOverflows] = useState(false)
   const descRef = useRef<HTMLParagraphElement>(null)
+  const pinnedRef = useRef<HTMLParagraphElement>(null)
 
   const fetchData = useCallback(async (url: string) => {
     setIsLoading(true)
@@ -109,8 +131,45 @@ export function MusicDetailDialog({
       setDetails(null)
       setFavoriteId(null)
       setScheduleOpen(false)
+      setPinnedComment(null)
+      setPinnedLoading(false)
+      setPinnedExpanded(false)
+      setPinnedOverflows(false)
     }
   }, [open, item?.url, fetchData])
+
+  // Fetch pinned comment in a separate useEffect — must NOT be inside fetchData
+  // to avoid blocking setIsLoading(false) during the slow comment extraction
+  useEffect(() => {
+    if (!details || !item?.url) return
+
+    const cached = getCachedPinned(item.url)
+    if (cached.hit) {
+      setPinnedComment(cached.data)
+      return
+    }
+
+    const controller = new AbortController()
+    setPinnedLoading(true)
+    setPinnedExpanded(false)
+    setPinnedOverflows(false)
+
+    api.getPinnedComment(item.url, controller.signal)
+      .then((comment) => {
+        if (!controller.signal.aborted) {
+          setPinnedComment(comment)
+          setCachedPinned(item.url, comment)
+        }
+      })
+      .catch(() => { /* silently hide on error */ })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setPinnedLoading(false)
+        }
+      })
+
+    return () => controller.abort()
+  }, [details, item?.url])
 
   // Check if description overflows 3 lines
   useEffect(() => {
@@ -119,6 +178,14 @@ export function MusicDetailDialog({
       setDescOverflows(el.scrollHeight > el.clientHeight + 1)
     }
   }, [details?.description])
+
+  // Check if pinned comment overflows 4 lines
+  useEffect(() => {
+    if (pinnedComment?.text && pinnedRef.current) {
+      const el = pinnedRef.current
+      setPinnedOverflows(el.scrollHeight > el.clientHeight + 1)
+    }
+  }, [pinnedComment?.text])
 
   const handlePlayAction = useCallback(() => {
     if (!item) return
@@ -343,6 +410,51 @@ export function MusicDetailDialog({
                       onClick={() => setDescExpanded(!descExpanded)}
                     >
                       {descExpanded ? (
+                        <>Show less <ChevronUp className="h-3 w-3" /></>
+                      ) : (
+                        <>Show more <ChevronDown className="h-3 w-3" /></>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Pinned Comment */}
+              {pinnedLoading && (
+                <div className="pt-2 border-t border-border flex flex-col gap-1.5">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              )}
+              {pinnedComment && !pinnedLoading && (
+                <div className="pt-2 border-t border-border flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Pin className="h-3 w-3" />
+                    <span>Pinned comment</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold">{pinnedComment.author}</span>
+                    {pinnedComment.like_count > 0 && (
+                      <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                        <ThumbsUp className="h-3 w-3" />
+                        {pinnedComment.like_count.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                  <p
+                    ref={pinnedRef}
+                    className={`text-sm text-muted-foreground whitespace-pre-line ${
+                      pinnedExpanded ? '' : 'line-clamp-4'
+                    }`}
+                  >
+                    {pinnedComment.text}
+                  </p>
+                  {pinnedOverflows && (
+                    <button
+                      className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                      onClick={() => setPinnedExpanded(!pinnedExpanded)}
+                    >
+                      {pinnedExpanded ? (
                         <>Show less <ChevronUp className="h-3 w-3" /></>
                       ) : (
                         <>Show more <ChevronDown className="h-3 w-3" /></>

@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import type { TrackInfo, SearchResult, VideoDetails } from '../types/ytdlp.js'
+import type { TrackInfo, SearchResult, VideoDetails, PinnedComment } from '../types/ytdlp.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -110,6 +110,71 @@ export async function getVideoDetails(url: string): Promise<VideoDetails> {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     throw new Error(`Failed to get video details: ${message}`)
+  }
+}
+
+// In-memory cache for pinned comments (TTL: 10 minutes, max 200 entries)
+const pinnedCommentCache = new Map<string, { data: PinnedComment | null; expires: number }>()
+const PINNED_CACHE_TTL = 10 * 60 * 1000
+const PINNED_CACHE_MAX = 200
+
+function getCachedPinnedComment(url: string): { hit: boolean; data: PinnedComment | null } {
+  const entry = pinnedCommentCache.get(url)
+  if (!entry) return { hit: false, data: null }
+  if (Date.now() > entry.expires) {
+    pinnedCommentCache.delete(url)
+    return { hit: false, data: null }
+  }
+  return { hit: true, data: entry.data }
+}
+
+function setCachedPinnedComment(url: string, data: PinnedComment | null): void {
+  if (pinnedCommentCache.size >= PINNED_CACHE_MAX) {
+    const oldest = pinnedCommentCache.keys().next().value
+    if (oldest !== undefined) pinnedCommentCache.delete(oldest)
+  }
+  pinnedCommentCache.set(url, { data, expires: Date.now() + PINNED_CACHE_TTL })
+}
+
+export async function getPinnedComment(url: string): Promise<PinnedComment | null> {
+  const cached = getCachedPinnedComment(url)
+  if (cached.hit) return cached.data
+
+  try {
+    const { stdout } = await execFileAsync('yt-dlp', [
+      '--dump-json',
+      '--no-playlist',
+      '--no-write-info-json',
+      '--write-comments',
+      '--js-runtimes', 'node',
+      '--extractor-args', 'youtube:comment_sort=top;max_comments=5',
+      url,
+    ], { timeout: 20000 })
+
+    const raw = JSON.parse(stdout.trim())
+
+    if (!raw.comments || !Array.isArray(raw.comments) || raw.comments.length === 0) {
+      setCachedPinnedComment(url, null)
+      return null
+    }
+
+    const pinned = raw.comments.find((c: { is_pinned?: boolean }) => c.is_pinned === true)
+    if (!pinned) {
+      setCachedPinnedComment(url, null)
+      return null
+    }
+
+    const result: PinnedComment = {
+      author: pinned.author || '',
+      text: pinned.text || '',
+      like_count: pinned.like_count ?? 0,
+    }
+
+    setCachedPinnedComment(url, result)
+    return result
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    throw new Error(`Failed to get pinned comment: ${message}`)
   }
 }
 

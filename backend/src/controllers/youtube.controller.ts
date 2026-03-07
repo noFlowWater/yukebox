@@ -26,3 +26,23 @@ export async function handleYoutubeDetails(
     reply.status(500).send(fail('YOUTUBE_ERROR', message))
   }
 }
+
+export async function handlePinnedComment(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  try {
+    const parsed = youtubeDetailsSchema.safeParse(request.query)
+    if (!parsed.success) {
+      const messages = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`)
+      reply.status(400).send(fail('VALIDATION_ERROR', messages.join('; ')))
+      return
+    }
+
+    const comment = await ytdlp.getPinnedComment(parsed.data.url)
+    reply.status(200).send(ok(comment))
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    reply.status(500).send(fail('YOUTUBE_ERROR', message))
+  }
+}

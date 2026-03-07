@@ -164,6 +164,13 @@ export interface YoutubeDetails {
   duration: number
 }
 
+// Pinned Comment
+export interface PinnedComment {
+  author: string
+  text: string
+  like_count: number
+}
+
 // Favorite
 export interface Favorite {
   id: number

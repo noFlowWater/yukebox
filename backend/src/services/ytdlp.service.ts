@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import type { TrackInfo, SearchResult, VideoDetails, PinnedComment } from '../types/ytdlp.js'
+import type { TrackInfo, SearchResult, VideoDetails, VideoComment, VideoComments } from '../types/ytdlp.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -113,32 +113,36 @@ export async function getVideoDetails(url: string): Promise<VideoDetails> {
   }
 }
 
-// In-memory cache for pinned comments (TTL: 10 minutes, max 200 entries)
-const pinnedCommentCache = new Map<string, { data: PinnedComment | null; expires: number }>()
-const PINNED_CACHE_TTL = 10 * 60 * 1000
-const PINNED_CACHE_MAX = 200
+// In-memory cache for video comments (TTL: 10 minutes, max 200 entries)
+const commentsCache = new Map<string, { data: VideoComments; expires: number }>()
+const COMMENTS_CACHE_TTL = 10 * 60 * 1000
+const COMMENTS_CACHE_MAX = 200
 
-function getCachedPinnedComment(url: string): { hit: boolean; data: PinnedComment | null } {
-  const entry = pinnedCommentCache.get(url)
-  if (!entry) return { hit: false, data: null }
+function getCachedComments(url: string): VideoComments | null {
+  const entry = commentsCache.get(url)
+  if (!entry) return null
   if (Date.now() > entry.expires) {
-    pinnedCommentCache.delete(url)
-    return { hit: false, data: null }
+    commentsCache.delete(url)
+    return null
   }
-  return { hit: true, data: entry.data }
+  return entry.data
 }
 
-function setCachedPinnedComment(url: string, data: PinnedComment | null): void {
-  if (pinnedCommentCache.size >= PINNED_CACHE_MAX) {
-    const oldest = pinnedCommentCache.keys().next().value
-    if (oldest !== undefined) pinnedCommentCache.delete(oldest)
+function setCachedComments(url: string, data: VideoComments): void {
+  if (commentsCache.size >= COMMENTS_CACHE_MAX) {
+    const oldest = commentsCache.keys().next().value
+    if (oldest !== undefined) commentsCache.delete(oldest)
   }
-  pinnedCommentCache.set(url, { data, expires: Date.now() + PINNED_CACHE_TTL })
+  commentsCache.set(url, { data, expires: Date.now() + COMMENTS_CACHE_TTL })
 }
 
-export async function getPinnedComment(url: string): Promise<PinnedComment | null> {
-  const cached = getCachedPinnedComment(url)
-  if (cached.hit) return cached.data
+function toVideoComment(c: { author?: string; text?: string; like_count?: number }): VideoComment {
+  return { author: c.author || '', text: c.text || '', like_count: c.like_count ?? 0 }
+}
+
+export async function getVideoComments(url: string): Promise<VideoComments> {
+  const cached = getCachedComments(url)
+  if (cached) return cached
 
   try {
     const { stdout } = await execFileAsync('yt-dlp', [
@@ -153,28 +157,29 @@ export async function getPinnedComment(url: string): Promise<PinnedComment | nul
 
     const raw = JSON.parse(stdout.trim())
 
+    const empty: VideoComments = { pinned: null, top: [] }
+
     if (!raw.comments || !Array.isArray(raw.comments) || raw.comments.length === 0) {
-      setCachedPinnedComment(url, null)
-      return null
+      setCachedComments(url, empty)
+      return empty
     }
 
     const pinned = raw.comments.find((c: { is_pinned?: boolean }) => c.is_pinned === true)
-    if (!pinned) {
-      setCachedPinnedComment(url, null)
-      return null
+    const top = raw.comments
+      .filter((c: { is_pinned?: boolean }) => c.is_pinned !== true)
+      .slice(0, 2)
+      .map(toVideoComment)
+
+    const result: VideoComments = {
+      pinned: pinned ? toVideoComment(pinned) : null,
+      top,
     }
 
-    const result: PinnedComment = {
-      author: pinned.author || '',
-      text: pinned.text || '',
-      like_count: pinned.like_count ?? 0,
-    }
-
-    setCachedPinnedComment(url, result)
+    setCachedComments(url, result)
     return result
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
-    throw new Error(`Failed to get pinned comment: ${message}`)
+    throw new Error(`Failed to get video comments: ${message}`)
   }
 }
 

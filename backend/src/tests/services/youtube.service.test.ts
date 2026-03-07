@@ -137,7 +137,7 @@ describe('getVideoDetails', () => {
   })
 })
 
-describe('getPinnedComment', () => {
+describe('getVideoComments', () => {
   beforeEach(() => {
     vi.resetModules()
   })
@@ -157,7 +157,7 @@ describe('getPinnedComment', () => {
     })
   }
 
-  it('should return pinned comment when found', async () => {
+  it('should return pinned comment and top comments', async () => {
     const { execFile } = await import('node:child_process')
     const mockExecFile = vi.mocked(execFile)
 
@@ -165,7 +165,8 @@ describe('getPinnedComment', () => {
       title: 'Test Video',
       comments: [
         { author: 'Creator', text: 'Timestamps:\n0:00 Intro\n1:00 Main', like_count: 500, is_pinned: true },
-        { author: 'Other', text: 'Great video!', like_count: 10, is_pinned: false },
+        { author: 'User1', text: 'Great video!', like_count: 10, is_pinned: false },
+        { author: 'User2', text: 'Amazing!', like_count: 5, is_pinned: false },
       ],
     })
 
@@ -179,16 +180,19 @@ describe('getPinnedComment', () => {
 
     await setupPromisify()
 
-    const { getPinnedComment } = await import('../../services/ytdlp.service.js')
-    const result = await getPinnedComment('https://youtube.com/watch?v=pinned11111')
+    const { getVideoComments } = await import('../../services/ytdlp.service.js')
+    const result = await getVideoComments('https://youtube.com/watch?v=pinned11111')
 
-    expect(result).not.toBeNull()
-    expect(result!.author).toBe('Creator')
-    expect(result!.text).toBe('Timestamps:\n0:00 Intro\n1:00 Main')
-    expect(result!.like_count).toBe(500)
+    expect(result.pinned).not.toBeNull()
+    expect(result.pinned!.author).toBe('Creator')
+    expect(result.pinned!.text).toBe('Timestamps:\n0:00 Intro\n1:00 Main')
+    expect(result.pinned!.like_count).toBe(500)
+    expect(result.top).toHaveLength(2)
+    expect(result.top[0].author).toBe('User1')
+    expect(result.top[1].author).toBe('User2')
   })
 
-  it('should return null when no pinned comment exists', async () => {
+  it('should return null pinned with top comments when no pinned exists', async () => {
     const { execFile } = await import('node:child_process')
     const mockExecFile = vi.mocked(execFile)
 
@@ -209,13 +213,15 @@ describe('getPinnedComment', () => {
 
     await setupPromisify()
 
-    const { getPinnedComment } = await import('../../services/ytdlp.service.js')
-    const result = await getPinnedComment('https://youtube.com/watch?v=nopin111111')
+    const { getVideoComments } = await import('../../services/ytdlp.service.js')
+    const result = await getVideoComments('https://youtube.com/watch?v=nopin111111')
 
-    expect(result).toBeNull()
+    expect(result.pinned).toBeNull()
+    expect(result.top).toHaveLength(1)
+    expect(result.top[0].author).toBe('User1')
   })
 
-  it('should return null when comments array is undefined', async () => {
+  it('should return empty when comments array is undefined', async () => {
     const { execFile } = await import('node:child_process')
     const mockExecFile = vi.mocked(execFile)
 
@@ -231,10 +237,11 @@ describe('getPinnedComment', () => {
 
     await setupPromisify()
 
-    const { getPinnedComment } = await import('../../services/ytdlp.service.js')
-    const result = await getPinnedComment('https://youtube.com/watch?v=nocomm11111')
+    const { getVideoComments } = await import('../../services/ytdlp.service.js')
+    const result = await getVideoComments('https://youtube.com/watch?v=nocomm11111')
 
-    expect(result).toBeNull()
+    expect(result.pinned).toBeNull()
+    expect(result.top).toHaveLength(0)
   })
 
   it('should throw on yt-dlp process error', async () => {
@@ -251,7 +258,7 @@ describe('getPinnedComment', () => {
 
     await setupPromisify()
 
-    const { getPinnedComment } = await import('../../services/ytdlp.service.js')
-    await expect(getPinnedComment('https://youtube.com/watch?v=bad')).rejects.toThrow('Failed to get pinned comment')
+    const { getVideoComments } = await import('../../services/ytdlp.service.js')
+    await expect(getVideoComments('https://youtube.com/watch?v=bad')).rejects.toThrow('Failed to get video comments')
   })
 })

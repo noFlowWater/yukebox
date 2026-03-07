@@ -23,8 +23,13 @@ export interface VideoDetails {
   duration: number
 }
 
-export interface PinnedComment {
+export interface VideoComment {
   author: string
   text: string
   like_count: number
+}
+
+export interface VideoComments {
+  pinned: VideoComment | null
+  top: VideoComment[]
 }

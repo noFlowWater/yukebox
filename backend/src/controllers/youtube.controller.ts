@@ -27,7 +27,7 @@ export async function handleYoutubeDetails(
   }
 }
 
-export async function handlePinnedComment(
+export async function handleComments(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> {
@@ -39,8 +39,8 @@ export async function handlePinnedComment(
       return
     }
 
-    const comment = await ytdlp.getPinnedComment(parsed.data.url)
-    reply.status(200).send(ok(comment))
+    const comments = await ytdlp.getVideoComments(parsed.data.url)
+    reply.status(200).send(ok(comments))
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     reply.status(500).send(fail('YOUTUBE_ERROR', message))

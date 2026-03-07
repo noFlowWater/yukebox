@@ -6,7 +6,7 @@ import { setupAuth, wrapWithAuth, getAuthCookie } from '../helpers/auth.js'
 
 vi.mock('../../services/ytdlp.service.js', () => ({
   getVideoDetails: vi.fn(),
-  getPinnedComment: vi.fn(),
+  getVideoComments: vi.fn(),
 }))
 
 function buildTestApp() {
@@ -119,7 +119,7 @@ describe('GET /api/youtube/details', () => {
   })
 })
 
-describe('GET /api/youtube/pinned-comment', () => {
+describe('GET /api/youtube/comments', () => {
   let app: ReturnType<typeof buildTestApp>
   let authCookie: string
 
@@ -140,53 +140,52 @@ describe('GET /api/youtube/pinned-comment', () => {
   it('should return 401 without auth', async () => {
     const response = await app.inject({
       method: 'GET',
-      url: '/api/youtube/pinned-comment?url=https://youtube.com/watch?v=abc',
+      url: '/api/youtube/comments?url=https://youtube.com/watch?v=abc',
     })
     expect(response.statusCode).toBe(401)
   })
 
-  it('should return 200 with pinned comment data', async () => {
-    const { getPinnedComment } = await import('../../services/ytdlp.service.js')
-    vi.mocked(getPinnedComment).mockResolvedValueOnce({
-      author: 'Creator',
-      text: 'Check timestamps below!',
-      like_count: 100,
+  it('should return 200 with pinned and top comments', async () => {
+    const { getVideoComments } = await import('../../services/ytdlp.service.js')
+    vi.mocked(getVideoComments).mockResolvedValueOnce({
+      pinned: { author: 'Creator', text: 'Check timestamps below!', like_count: 100 },
+      top: [{ author: 'User1', text: 'Nice!', like_count: 5 }],
     })
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/youtube/pinned-comment?url=' + encodeURIComponent('https://youtube.com/watch?v=abc'),
+      url: '/api/youtube/comments?url=' + encodeURIComponent('https://youtube.com/watch?v=abc'),
       headers: { cookie: authCookie },
     })
 
     expect(response.statusCode).toBe(200)
     const body = response.json()
     expect(body.success).toBe(true)
-    expect(body.data.author).toBe('Creator')
-    expect(body.data.text).toBe('Check timestamps below!')
-    expect(body.data.like_count).toBe(100)
+    expect(body.data.pinned.author).toBe('Creator')
+    expect(body.data.top).toHaveLength(1)
   })
 
-  it('should return 200 with null data when no pinned comment', async () => {
-    const { getPinnedComment } = await import('../../services/ytdlp.service.js')
-    vi.mocked(getPinnedComment).mockResolvedValueOnce(null)
+  it('should return 200 with empty comments', async () => {
+    const { getVideoComments } = await import('../../services/ytdlp.service.js')
+    vi.mocked(getVideoComments).mockResolvedValueOnce({ pinned: null, top: [] })
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/youtube/pinned-comment?url=' + encodeURIComponent('https://youtube.com/watch?v=abc'),
+      url: '/api/youtube/comments?url=' + encodeURIComponent('https://youtube.com/watch?v=abc'),
       headers: { cookie: authCookie },
     })
 
     expect(response.statusCode).toBe(200)
     const body = response.json()
     expect(body.success).toBe(true)
-    expect(body.data).toBeNull()
+    expect(body.data.pinned).toBeNull()
+    expect(body.data.top).toHaveLength(0)
   })
 
   it('should return 400 for missing url', async () => {
     const response = await app.inject({
       method: 'GET',
-      url: '/api/youtube/pinned-comment',
+      url: '/api/youtube/comments',
       headers: { cookie: authCookie },
     })
     expect(response.statusCode).toBe(400)
@@ -194,12 +193,12 @@ describe('GET /api/youtube/pinned-comment', () => {
   })
 
   it('should return 500 on yt-dlp failure', async () => {
-    const { getPinnedComment } = await import('../../services/ytdlp.service.js')
-    vi.mocked(getPinnedComment).mockRejectedValueOnce(new Error('Failed to get pinned comment: timeout'))
+    const { getVideoComments } = await import('../../services/ytdlp.service.js')
+    vi.mocked(getVideoComments).mockRejectedValueOnce(new Error('Failed to get video comments: timeout'))
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/youtube/pinned-comment?url=' + encodeURIComponent('https://youtube.com/watch?v=abc'),
+      url: '/api/youtube/comments?url=' + encodeURIComponent('https://youtube.com/watch?v=abc'),
       headers: { cookie: authCookie },
     })
 

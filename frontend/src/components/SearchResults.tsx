@@ -25,6 +25,7 @@ interface SearchResultsProps {
   onSchedule: (items: SearchResult[], scheduledAt: string) => void
   favoritedUrls: Map<string, number>
   onToggleFavorite: (item: SearchResult) => void
+  onOpenDetail: (item: SearchResult) => void
 }
 
 export function SearchResults({
@@ -37,6 +38,7 @@ export function SearchResults({
   onSchedule,
   favoritedUrls,
   onToggleFavorite,
+  onOpenDetail,
 }: SearchResultsProps) {
   const { timezone } = useAccessibility()
   const {
@@ -141,18 +143,35 @@ export function SearchResults({
                 className="self-center"
               />
 
-              {/* Thumbnail */}
-              <Image
-                src={item.thumbnail}
-                alt={item.title}
-                width={64}
-                height={48}
-                className="h-12 w-16 rounded object-cover shrink-0 bg-muted self-center"
-              />
+              {/* Thumbnail — clickable */}
+              <div
+                role="button"
+                tabIndex={0}
+                className="shrink-0 self-center cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => onOpenDetail(item)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail(item) } }}
+                aria-label={`View details: ${item.title}`}
+              >
+                <Image
+                  src={item.thumbnail}
+                  alt={item.title}
+                  width={64}
+                  height={48}
+                  className="h-12 w-16 rounded object-cover bg-muted"
+                />
+              </div>
 
               {/* Title + Duration + Actions */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium line-clamp-2">{item.title}</p>
+                <p
+                  role="button"
+                  tabIndex={0}
+                  className="text-sm font-medium line-clamp-2 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+                  onClick={() => onOpenDetail(item)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail(item) } }}
+                >
+                  {item.title}
+                </p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <p className="text-xs text-muted-foreground">
                     {formatDuration(item.duration)}

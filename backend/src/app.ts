@@ -55,6 +55,7 @@ export function buildApp() {
     instance.register(import('./routes/queue.js'))
     instance.register(import('./routes/schedule.js'))
     instance.register(import('./routes/search.js'))
+    instance.register(import('./routes/youtube.js'))
     instance.register(import('./routes/favorite.js'))
     const { speakerUserRoutes } = await import('./routes/speaker.js')
     instance.register(speakerUserRoutes)

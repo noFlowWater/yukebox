@@ -25,6 +25,7 @@ import { FavoritesPanel } from '@/components/FavoritesPanel'
 import { PlayerBar } from '@/components/PlayerBar'
 import { SpeakerBar } from '@/components/SpeakerBar'
 import { SettingsDialog } from '@/components/SettingsDialog'
+import { MusicDetailDialog } from '@/components/MusicDetailDialog'
 import { useAuth } from '@/hooks/useAuth'
 import { useSpeaker } from '@/contexts/SpeakerContext'
 import { useAccessibility } from '@/contexts/AccessibilityContext'
@@ -42,6 +43,7 @@ export default function Home() {
   const [hasSearched, setHasSearched] = useState(false)
   const [favoritedUrls, setFavoritedUrls] = useState<Map<string, number>>(new Map())
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [detailState, setDetailState] = useState<{ open: boolean; item: SearchResult | null; queueId: number | null }>({ open: false, item: null, queueId: null })
   const [searchMode, setSearchMode] = useState(false)
   const [searchValue, setSearchValue] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -219,6 +221,36 @@ export default function Home() {
     setHasSearched(false)
   }, [])
 
+  const handleOpenDetail = useCallback((item: SearchResult, queueId?: number) => {
+    setDetailState({ open: true, item, queueId: queueId ?? null })
+  }, [])
+
+  const handleDetailOpenChange = useCallback((open: boolean) => {
+    if (!open) setDetailState({ open: false, item: null, queueId: null })
+  }, [])
+
+  const handlePlayFromQueue = useCallback(async (id: number) => {
+    try {
+      const item = await api.playFromQueue(id)
+      toast.success(`Playing: ${item.title}`)
+      window.dispatchEvent(new Event('queue-updated'))
+    } catch (err) {
+      handleApiError(err, 'Play failed')
+    }
+  }, [])
+
+  const handleFavoriteChanged = useCallback((url: string, favoriteId: number | null) => {
+    setFavoritedUrls((prev) => {
+      const next = new Map(prev)
+      if (favoriteId !== null) {
+        next.set(url, favoriteId)
+      } else {
+        next.delete(url)
+      }
+      return next
+    })
+  }, [])
+
   const handleLogout = useCallback(async () => {
     try {
       await api.logout()
@@ -349,6 +381,7 @@ export default function Home() {
             onSchedule={handleSchedule}
             favoritedUrls={favoritedUrls}
             onToggleFavorite={handleToggleFavorite}
+            onOpenDetail={handleOpenDetail}
           />
         )}
         <Tabs value={activeTab} onValueChange={setActiveTab} className={searchMode ? 'hidden' : undefined}>
@@ -361,10 +394,10 @@ export default function Home() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="queue" forceMount className="data-[state=inactive]:hidden">
-            <QueuePanel />
+            <QueuePanel onOpenDetail={(item, queueId) => handleOpenDetail(item, queueId)} />
           </TabsContent>
           <TabsContent value="schedule" forceMount className="data-[state=inactive]:hidden">
-            <SchedulePanel />
+            <SchedulePanel onOpenDetail={handleOpenDetail} />
           </TabsContent>
           <TabsContent value="favorites" forceMount className="data-[state=inactive]:hidden">
             <FavoritesPanel
@@ -372,6 +405,7 @@ export default function Home() {
               onAddToQueue={handleAddToQueue}
               onBulkAddToQueue={handleBulkAddToQueue}
               onSchedule={handleSchedule}
+              onOpenDetail={handleOpenDetail}
             />
           </TabsContent>
         </Tabs>
@@ -379,6 +413,18 @@ export default function Home() {
 
       {/* Player bar — fixed bottom */}
       <PlayerBar />
+
+      <MusicDetailDialog
+        open={detailState.open}
+        item={detailState.item}
+        queueId={detailState.queueId}
+        onOpenChange={handleDetailOpenChange}
+        onPlay={handlePlay}
+        onPlayFromQueue={handlePlayFromQueue}
+        onAddToQueue={handleAddToQueue}
+        onSchedule={handleSchedule}
+        onFavoriteChanged={handleFavoriteChanged}
+      />
 
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>

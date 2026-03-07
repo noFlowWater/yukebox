@@ -22,7 +22,11 @@ const MODE_CONFIG: Record<PlaybackMode, { icon: typeof ArrowRight; label: string
   shuffle: { icon: Shuffle, label: 'Shuffle' },
 }
 
-export function QueuePanel() {
+interface QueuePanelProps {
+  onOpenDetail: (item: { url: string; title: string; thumbnail: string; duration: number }, queueId: number) => void
+}
+
+export function QueuePanel({ onOpenDetail }: QueuePanelProps) {
   const { activeSpeakerId } = useSpeaker()
   const { status: playbackStatus } = useStatus()
   const [queue, setQueue] = useState<QueueItemType[]>([])
@@ -273,6 +277,7 @@ export function QueuePanel() {
               onPause={handlePause}
               onStop={handleStop}
               onRemove={handleRemove}
+              onOpenDetail={onOpenDetail}
             />
           ))}
         </ul>

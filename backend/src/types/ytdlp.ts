@@ -12,3 +12,13 @@ export interface SearchResult {
   thumbnail: string
   duration: number
 }
+
+export interface VideoDetails {
+  title: string
+  channel: string
+  view_count: number
+  upload_date: string
+  description: string
+  thumbnail_hq: string
+  duration: number
+}

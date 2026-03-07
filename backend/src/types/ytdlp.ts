@@ -22,3 +22,14 @@ export interface VideoDetails {
   thumbnail_hq: string
   duration: number
 }
+
+export interface VideoComment {
+  author: string
+  text: string
+  like_count: number
+}
+
+export interface VideoComments {
+  pinned: VideoComment | null
+  top: VideoComment[]
+}

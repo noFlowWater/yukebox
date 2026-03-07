@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
-import { Play, ListPlus, Clock, Heart, ExternalLink, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
+import { Play, ListPlus, Clock, Heart, ExternalLink, RefreshCw, ChevronDown, ChevronUp, Pin, ThumbsUp, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -16,7 +16,7 @@ import { ScheduleTimePicker } from '@/components/ScheduleTimePicker'
 import { formatDuration, handleApiError } from '@/lib/utils'
 import { useAccessibility } from '@/contexts/AccessibilityContext'
 import * as api from '@/lib/api'
-import type { SearchResult, YoutubeDetails } from '@/types'
+import type { SearchResult, YoutubeDetails, VideoComments, VideoComment } from '@/types'
 
 interface MusicDetailDialogProps {
   open: boolean
@@ -34,6 +34,22 @@ interface MusicDetailDialogProps {
 const detailsCache = new Map<string, YoutubeDetails>()
 const DETAILS_CACHE_MAX = 100
 
+// Session-level cache for video comments (max 100 entries)
+const commentsCache = new Map<string, VideoComments>()
+const COMMENTS_CACHE_MAX = 100
+
+function getCachedComments(url: string): VideoComments | undefined {
+  return commentsCache.get(url)
+}
+
+function setCachedComments(url: string, data: VideoComments): void {
+  if (commentsCache.size >= COMMENTS_CACHE_MAX) {
+    const oldest = commentsCache.keys().next().value
+    if (oldest !== undefined) commentsCache.delete(oldest)
+  }
+  commentsCache.set(url, data)
+}
+
 function getCachedDetails(url: string): YoutubeDetails | undefined {
   return detailsCache.get(url)
 }
@@ -44,6 +60,64 @@ function setCachedDetails(url: string, data: YoutubeDetails): void {
     if (oldest !== undefined) detailsCache.delete(oldest)
   }
   detailsCache.set(url, data)
+}
+
+function CommentItem({
+  comment,
+  pinned = false,
+  expanded = false,
+  overflows = false,
+  textRef,
+  onToggle,
+}: {
+  comment: VideoComment
+  pinned?: boolean
+  expanded?: boolean
+  overflows?: boolean
+  textRef?: React.RefObject<HTMLParagraphElement | null>
+  onToggle?: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1.5">
+        {pinned ? (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Pin className="h-3 w-3" />
+            Pinned
+          </span>
+        ) : (
+          <MessageSquare className="h-3 w-3 text-muted-foreground" />
+        )}
+        <span className="text-xs font-semibold">{comment.author}</span>
+        {comment.like_count > 0 && (
+          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+            <ThumbsUp className="h-3 w-3" />
+            {comment.like_count.toLocaleString()}
+          </span>
+        )}
+      </div>
+      <p
+        ref={textRef}
+        className={`text-sm text-muted-foreground whitespace-pre-line ${
+          pinned && !expanded ? 'line-clamp-4' : pinned ? '' : 'line-clamp-3'
+        }`}
+      >
+        {comment.text}
+      </p>
+      {pinned && overflows && onToggle && (
+        <button
+          className="text-xs text-primary hover:underline flex items-center gap-0.5"
+          onClick={onToggle}
+        >
+          {expanded ? (
+            <>Show less <ChevronUp className="h-3 w-3" /></>
+          ) : (
+            <>Show more <ChevronDown className="h-3 w-3" /></>
+          )}
+        </button>
+      )}
+    </div>
+  )
 }
 
 export function MusicDetailDialog({
@@ -66,7 +140,12 @@ export function MusicDetailDialog({
   const [descExpanded, setDescExpanded] = useState(false)
   const [descOverflows, setDescOverflows] = useState(false)
   const [scheduleOpen, setScheduleOpen] = useState(false)
+  const [comments, setComments] = useState<VideoComments | null>(null)
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [pinnedExpanded, setPinnedExpanded] = useState(false)
+  const [pinnedOverflows, setPinnedOverflows] = useState(false)
   const descRef = useRef<HTMLParagraphElement>(null)
+  const pinnedRef = useRef<HTMLParagraphElement>(null)
 
   const fetchData = useCallback(async (url: string) => {
     setIsLoading(true)
@@ -109,8 +188,45 @@ export function MusicDetailDialog({
       setDetails(null)
       setFavoriteId(null)
       setScheduleOpen(false)
+      setComments(null)
+      setCommentsLoading(false)
+      setPinnedExpanded(false)
+      setPinnedOverflows(false)
     }
   }, [open, item?.url, fetchData])
+
+  // Fetch comments in a separate useEffect — must NOT be inside fetchData
+  // to avoid blocking setIsLoading(false) during the slow comment extraction
+  useEffect(() => {
+    if (!details || !item?.url) return
+
+    const cached = getCachedComments(item.url)
+    if (cached) {
+      setComments(cached)
+      return
+    }
+
+    const controller = new AbortController()
+    setCommentsLoading(true)
+    setPinnedExpanded(false)
+    setPinnedOverflows(false)
+
+    api.getVideoComments(item.url, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          setComments(data)
+          setCachedComments(item.url, data)
+        }
+      })
+      .catch(() => { /* silently hide on error */ })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setCommentsLoading(false)
+        }
+      })
+
+    return () => controller.abort()
+  }, [details, item?.url])
 
   // Check if description overflows 3 lines
   useEffect(() => {
@@ -119,6 +235,14 @@ export function MusicDetailDialog({
       setDescOverflows(el.scrollHeight > el.clientHeight + 1)
     }
   }, [details?.description])
+
+  // Check if pinned comment overflows 4 lines
+  useEffect(() => {
+    if (comments?.pinned?.text && pinnedRef.current) {
+      const el = pinnedRef.current
+      setPinnedOverflows(el.scrollHeight > el.clientHeight + 1)
+    }
+  }, [comments?.pinned?.text])
 
   const handlePlayAction = useCallback(() => {
     if (!item) return
@@ -349,6 +473,33 @@ export function MusicDetailDialog({
                       )}
                     </button>
                   )}
+                </div>
+              )}
+
+              {/* Comments */}
+              {commentsLoading && (
+                <div className="pt-2 border-t border-border flex flex-col gap-1.5">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-2/3" />
+                </div>
+              )}
+              {comments && !commentsLoading && (comments.pinned || comments.top.length > 0) && (
+                <div className="pt-2 border-t border-border flex flex-col gap-3">
+                  {/* Pinned comment */}
+                  {comments.pinned && (
+                    <CommentItem
+                      comment={comments.pinned}
+                      pinned
+                      expanded={pinnedExpanded}
+                      overflows={pinnedOverflows}
+                      textRef={pinnedRef}
+                      onToggle={() => setPinnedExpanded(!pinnedExpanded)}
+                    />
+                  )}
+                  {/* Top comments */}
+                  {comments.top.map((c, i) => (
+                    <CommentItem key={i} comment={c} />
+                  ))}
                 </div>
               )}
             </div>

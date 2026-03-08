@@ -17,8 +17,10 @@ export function useQueuePanel() {
   const [isLoading, setIsLoading] = useState(true)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [overIndex, setOverIndex] = useState<number | null>(null)
-  const [playbackMode, setPlaybackMode] = useState<PlaybackMode>('sequential')
   const suppressPollRef = useRef(false)
+
+  // Read playback mode from SSE (single source of truth)
+  const playbackMode = playbackStatus.playback_mode || 'sequential'
 
   const fetchQueue = useCallback(async () => {
     if (suppressPollRef.current) return
@@ -43,19 +45,6 @@ export function useQueuePanel() {
       window.removeEventListener('queue-updated', onUpdate)
     }
   }, [fetchQueue])
-
-  // Fetch playback mode when speaker changes
-  useEffect(() => {
-    async function fetchMode() {
-      try {
-        const { mode } = await api.getPlaybackMode(activeSpeakerId)
-        setPlaybackMode(mode)
-      } catch {
-        // Fallback to sequential
-      }
-    }
-    fetchMode()
-  }, [activeSpeakerId])
 
   // --- Play from queue ---
   const handlePlay = useCallback(async (id: number) => {
@@ -91,11 +80,9 @@ export function useQueuePanel() {
   const handleModeChange = useCallback(async () => {
     const nextIndex = (MODES.indexOf(playbackMode) + 1) % MODES.length
     const nextMode = MODES[nextIndex]
-    setPlaybackMode(nextMode)
     try {
       await api.setPlaybackMode(nextMode, activeSpeakerId)
     } catch (err) {
-      setPlaybackMode(playbackMode)
       handleApiError(err, 'Mode change failed')
     }
   }, [playbackMode, activeSpeakerId])

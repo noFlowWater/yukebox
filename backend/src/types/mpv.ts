@@ -1,3 +1,5 @@
+import type { PlaybackMode } from './speaker.js'
+
 export interface MpvStatus {
   playing: boolean
   paused: boolean
@@ -9,6 +11,8 @@ export interface MpvStatus {
   speaker_id: number | null
   speaker_name: string | null
   has_next: boolean
+  has_previous: boolean
+  playback_mode: PlaybackMode
 }
 
 export const EMPTY_STATUS: MpvStatus = {
@@ -22,6 +26,8 @@ export const EMPTY_STATUS: MpvStatus = {
   speaker_id: null,
   speaker_name: null,
   has_next: false,
+  has_previous: false,
+  playback_mode: 'sequential',
 }
 
 export interface PlaybackInfo {

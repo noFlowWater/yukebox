@@ -31,6 +31,8 @@ describe('mpv types', () => {
       speaker_id: null,
       speaker_name: null,
       has_next: false,
+      has_previous: false,
+      playback_mode: 'sequential',
     })
   })
 

@@ -11,6 +11,8 @@ const { mockEngine } = vi.hoisted(() => ({
     togglePause: vi.fn(),
     setVolume: vi.fn(),
     seek: vi.fn(),
+    skip: vi.fn(),
+    previous: vi.fn(),
     getStatus: vi.fn().mockReturnValue({ playing: false }),
   },
 }))
@@ -51,6 +53,8 @@ describe('Playback Control API', () => {
     mockEngine.togglePause.mockResolvedValue(undefined)
     mockEngine.setVolume.mockResolvedValue(undefined)
     mockEngine.seek.mockResolvedValue(undefined)
+    mockEngine.skip.mockResolvedValue(undefined)
+    mockEngine.previous.mockResolvedValue(undefined)
   })
 
   it('should return 401 without auth', async () => {
@@ -187,6 +191,86 @@ describe('Playback Control API', () => {
 
       expect(response.statusCode).toBe(500)
       expect(response.json().error.code).toBe('VOLUME_ERROR')
+    })
+  })
+
+  describe('POST /api/skip', () => {
+    it('should skip to next track and return 200', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/skip',
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json()
+      expect(body.success).toBe(true)
+      expect(body.data.skipped).toBe(true)
+      expect(mockEngine.skip).toHaveBeenCalledOnce()
+    })
+
+    it('should accept optional speaker_id', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/skip',
+        payload: { speaker_id: 1 },
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(200)
+    })
+
+    it('should return 500 on engine error', async () => {
+      mockEngine.skip.mockRejectedValueOnce(new Error('skip failed'))
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/skip',
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(500)
+      expect(response.json().error.code).toBe('SKIP_ERROR')
+    })
+  })
+
+  describe('POST /api/previous', () => {
+    it('should go to previous track and return 200', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/previous',
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(200)
+      const body = response.json()
+      expect(body.success).toBe(true)
+      expect(body.data.previous).toBe(true)
+      expect(mockEngine.previous).toHaveBeenCalledOnce()
+    })
+
+    it('should accept optional speaker_id', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/previous',
+        payload: { speaker_id: 1 },
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(200)
+    })
+
+    it('should return 500 on engine error', async () => {
+      mockEngine.previous.mockRejectedValueOnce(new Error('previous failed'))
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/previous',
+        headers: { cookie: authCookie },
+      })
+
+      expect(response.statusCode).toBe(500)
+      expect(response.json().error.code).toBe('PREVIOUS_ERROR')
     })
   })
 })

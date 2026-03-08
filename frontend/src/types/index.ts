@@ -20,6 +20,9 @@ export interface PlayResult {
   duration: number
 }
 
+// Playback mode
+export type PlaybackMode = 'sequential' | 'repeat-all' | 'repeat-one' | 'shuffle'
+
 export interface PlaybackStatus {
   playing: boolean
   paused: boolean
@@ -31,15 +34,14 @@ export interface PlaybackStatus {
   speaker_id: number | null
   speaker_name: string | null
   has_next: boolean
+  has_previous: boolean
+  playback_mode: PlaybackMode
 }
 
 // Speaker status (dashboard)
 export interface SpeakerStatus extends PlaybackStatus {
   queue_count: number
 }
-
-// Playback mode
-export type PlaybackMode = 'sequential' | 'repeat-all' | 'repeat-one' | 'shuffle'
 
 // Queue
 export interface QueueItem {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Play, Pause, Square, Volume2, Music, Search } from 'lucide-react'
+import { Play, Pause, Volume2, Music, Search, SkipForward, SkipBack, ArrowRight, Repeat, Repeat1, Shuffle } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
@@ -9,6 +9,14 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { formatDuration, getYoutubeThumbnail } from '@/lib/utils'
 import { usePlayerBar } from '@/hooks/usePlayerBar'
 import { useSpeaker } from '@/contexts/SpeakerContext'
+import type { PlaybackMode } from '@/types'
+
+const MODE_CONFIG: Record<PlaybackMode, { icon: typeof ArrowRight; label: string }> = {
+  sequential: { icon: ArrowRight, label: 'In order' },
+  'repeat-all': { icon: Repeat, label: 'Repeat all' },
+  'repeat-one': { icon: Repeat1, label: 'Repeat one' },
+  shuffle: { icon: Shuffle, label: 'Shuffle' },
+}
 
 interface PlayerBarProps {
   onSearchClick?: () => void
@@ -30,7 +38,7 @@ export function PlayerBar({ onSearchClick }: PlayerBarProps) {
     status, displayStatus, volume, position,
     titleOpacity, isIdle, showMarquee,
     titleRef, measureRef,
-    handlePause, handleStop,
+    handlePause, handleSkip, handlePrevious, handleModeChange,
     handleVolumeDrag, handleVolumeCommit,
     handleSeekDrag, handleSeekCommit,
   } = usePlayerBar()
@@ -171,7 +179,62 @@ export function PlayerBar({ onSearchClick }: PlayerBarProps) {
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between w-full">
+          {/* Left wing */}
+          {(() => {
+            const mode = status.playback_mode || 'sequential'
+            const config = MODE_CONFIG[mode]
+            const ModeIcon = config.icon
+            return (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+                onClick={handleModeChange}
+                title={config.label}
+              >
+                <ModeIcon className="h-4 w-4" />
+              </Button>
+            )
+          })()}
+
+          {/* Transport center */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+              onClick={handlePrevious}
+              title="Previous"
+            >
+              <SkipBack className="h-4 w-4" />
+            </Button>
+
+            <Button
+              size="icon"
+              className="h-12 w-12 rounded-full bg-primary text-primary-foreground hover:brightness-110 shadow-lg shadow-primary/20"
+              onClick={handlePause}
+              title={status.paused ? 'Resume' : 'Pause'}
+            >
+              {status.paused ? (
+                <Play className="h-5 w-5 ml-0.5" />
+              ) : (
+                <Pause className="h-5 w-5" />
+              )}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
+              onClick={handleSkip}
+              title="Next"
+            >
+              <SkipForward className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Right wing */}
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -200,29 +263,6 @@ export function PlayerBar({ onSearchClick }: PlayerBarProps) {
               </div>
             </PopoverContent>
           </Popover>
-
-          <Button
-            size="icon"
-            className="h-12 w-12 rounded-full bg-primary text-primary-foreground hover:brightness-110 shadow-lg shadow-primary/20"
-            onClick={handlePause}
-            title={status.paused ? 'Resume' : 'Pause'}
-          >
-            {status.paused ? (
-              <Play className="h-5 w-5 ml-0.5" />
-            ) : (
-              <Pause className="h-5 w-5" />
-            )}
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
-            onClick={handleStop}
-            title="Stop"
-          >
-            <Square className="h-4 w-4" />
-          </Button>
         </div>
       </div>
     </div>

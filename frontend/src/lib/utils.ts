@@ -2,6 +2,7 @@ import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { toast } from 'sonner'
 import { ApiError } from '@/lib/api'
+import type { SearchResult } from '@/types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -114,4 +115,8 @@ export function createDateInTimezone(
 
 export function handleApiError(err: unknown, fallback: string): void {
   toast.error(err instanceof ApiError ? err.message : fallback)
+}
+
+export function toMediaItem(item: { url: string; title: string; thumbnail: string; duration: number }): SearchResult {
+  return { url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }
 }

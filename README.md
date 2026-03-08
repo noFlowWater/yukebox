@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](docker-compose.yml)
-[![Version](https://img.shields.io/badge/version-0.2.2-green.svg)](https://github.com/noFlowWater/yukebox/releases)
+[![Version](https://img.shields.io/badge/version-0.2.3-green.svg)](https://github.com/noFlowWater/yukebox/releases)
 [![GHCR](https://img.shields.io/badge/GHCR-images-blue.svg)](https://github.com/noFlowWater/yukebox/pkgs/container)
 
 Search or paste a YouTube URL — YukeBox streams audio directly to your Bluetooth speaker via the web.

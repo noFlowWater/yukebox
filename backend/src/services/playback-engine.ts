@@ -16,6 +16,15 @@ export interface PlayResult {
   duration: number
 }
 
+interface HistoryEntry {
+  url: string
+  title: string
+  thumbnail: string
+  duration: number
+}
+
+const MAX_HISTORY = 500
+
 export class PlaybackEngine extends EventEmitter {
   readonly speakerId: number
   private mpv: MpvProcess
@@ -27,6 +36,7 @@ export class PlaybackEngine extends EventEmitter {
   private defaultVolume: number
   private emitTimer: ReturnType<typeof setTimeout> | null = null
   private positionHeartbeat: ReturnType<typeof setInterval> | null = null
+  private playHistory: HistoryEntry[] = []
 
   constructor(speakerId: number) {
     super()
@@ -87,8 +97,9 @@ export class PlaybackEngine extends EventEmitter {
         throw new Error('Either url or query is required')
       }
 
-      // If currently playing, pause current item (save position) — stays in queue as 'paused'
+      // If currently playing, push to history and pause current item
       if (this.state === 'playing' || this.state === 'paused') {
+        this.pushCurrentToHistory()
         await this.pauseCurrentItem()
       }
 
@@ -146,6 +157,87 @@ export class PlaybackEngine extends EventEmitter {
     await this.mpv.seekTo(position)
   }
 
+  async skip(): Promise<void> {
+    return await this.withMutex(async () => {
+      if (this.state === 'idle') return
+
+      const current = this.queue.findPlaying()
+      if (!current) {
+        this.transitionToIdle()
+        return
+      }
+
+      // Push to history before advancing (exclude schedule items)
+      if (!current.schedule_id) {
+        this.pushCurrentToHistory()
+      }
+
+      // Stop mpv first — unlike handleTrackEnd, mpv is still playing
+      try {
+        await this.mpv.stopPlayback()
+      } catch {
+        // mpv may already be stopped
+      }
+
+      // Advance with forceAdvance=true so repeat-one still skips forward
+      await this.advanceToNext(current, true)
+    })
+  }
+
+  async previous(): Promise<void> {
+    return await this.withMutex(async () => {
+      if (this.state === 'idle') return
+
+      // Check 3-second rule using live position
+      let position = 0
+      try {
+        const info = await this.mpv.getPlaybackInfo()
+        position = info.position
+      } catch {
+        // If we can't get position, treat as restart
+      }
+
+      // Position >= 3s — restart current track
+      if (position >= 3) {
+        await this.mpv.seekTo(0)
+        if (this.state === 'paused') {
+          await this.mpv.resume()
+          this.transitionToPlaying()
+        }
+        return
+      }
+
+      // Position < 3s — go to previous from history
+      if (this.playHistory.length === 0) {
+        // No history — restart current
+        await this.mpv.seekTo(0)
+        if (this.state === 'paused') {
+          await this.mpv.resume()
+          this.transitionToPlaying()
+        }
+        return
+      }
+
+      const prev = this.playHistory.pop()!
+
+      // Stop current playback
+      try {
+        await this.mpv.stopPlayback()
+      } catch {
+        // mpv may already be stopped
+      }
+
+      // Pause current item (save position) so it stays in queue
+      const current = this.queue.findPlaying()
+      if (current) {
+        this.queue.pauseFront(position)
+      }
+
+      // Play the previous track
+      await this.playSpecificItem(prev)
+    })
+  }
+
   getStatus(): MpvStatus {
     const current = this.queue.findPlaying() ?? this.queue.front()
     const isPlaying = this.state === 'playing' || this.state === 'loading'
@@ -167,6 +259,8 @@ export class PlaybackEngine extends EventEmitter {
       speaker_id: this.speakerId,
       speaker_name: this.speakerName,
       has_next: hasNext,
+      has_previous: this.playHistory.length > 0,
+      playback_mode: this.getPlaybackMode(),
     }
   }
 
@@ -278,8 +372,9 @@ export class PlaybackEngine extends EventEmitter {
       const item = items.find((i) => i.id === id)
       if (!item) return null
 
-      // If currently playing, pause current item — stays in queue as 'paused'
+      // If currently playing, push to history and pause current item
       if (this.state === 'playing' || this.state === 'paused') {
+        this.pushCurrentToHistory()
         await this.pauseCurrentItem()
       }
 
@@ -391,6 +486,47 @@ export class PlaybackEngine extends EventEmitter {
     }
   }
 
+  private pushCurrentToHistory(): void {
+    const current = this.queue.findPlaying()
+    if (!current) return
+    this.playHistory.push({
+      url: current.url,
+      title: current.title,
+      thumbnail: current.thumbnail,
+      duration: current.duration,
+    })
+    if (this.playHistory.length > MAX_HISTORY) {
+      this.playHistory.splice(0, this.playHistory.length - MAX_HISTORY)
+    }
+  }
+
+  private async playSpecificItem(entry: HistoryEntry): Promise<void> {
+    // Find in queue by URL, or re-insert
+    const items = this.queue.getAll()
+    let item = items.find((i) => i.url === entry.url && (i.status === 'pending' || i.status === 'paused' || i.status === 'played'))
+
+    if (item) {
+      this.queue.markPlaying(item.id)
+    } else {
+      // Item was deleted from queue — re-insert at front
+      const created = this.queue.insertAtFront({
+        url: entry.url,
+        title: entry.title,
+        thumbnail: entry.thumbnail,
+        duration: entry.duration,
+      })
+      this.queue.markPlaying(created.id)
+    }
+
+    try {
+      const track = await ytdlp.resolve(entry.url)
+      await this.startPlayback(track.audioUrl, entry.title)
+    } catch {
+      // yt-dlp failed — transition to idle
+      this.transitionToIdle()
+    }
+  }
+
   private async pauseCurrentItem(): Promise<void> {
     try {
       const info = await this.mpv.getPlaybackInfo()
@@ -416,60 +552,73 @@ export class PlaybackEngine extends EventEmitter {
           return
         }
 
-        // Schedule items: always use default sequential behavior
-        if (current.schedule_id) {
-          const scheduleId = current.schedule_id
-          let groupId: string | null = null
-
-          const schedule = scheduleRepo.findById(scheduleId)
-          if (schedule) {
-            groupId = schedule.group_id
-            scheduleRepo.updateStatus(scheduleId, 'completed')
-          }
-
-          this.queue.removeFront()
-
-          if (groupId) {
-            const continued = await this.triggerGroupContinuation(groupId)
-            if (continued) return
-          }
-
-          await this.playFront()
-          return
+        // Push to history before advancing (exclude schedule items)
+        if (!current.schedule_id) {
+          this.pushCurrentToHistory()
         }
 
-        // Normal items: respect playback mode
-        const mode = this.getPlaybackMode()
-
-        switch (mode) {
-          case 'repeat-one':
-            await this.replayCurrent(current)
-            break
-          case 'repeat-all':
-            this.queue.moveToBack(current.id)
-            await this.playFront()
-            break
-          case 'shuffle':
-            this.queue.markPlayed(current.id)
-            if (this.queue.findRandomPending()) {
-              await this.playRandom()
-            } else {
-              this.endCycle()
-            }
-            break
-          case 'sequential':
-          default:
-            this.queue.markPlayed(current.id)
-            if (this.queue.findNextPlayable()) {
-              await this.playFront()
-            } else {
-              this.endCycle()
-            }
-            break
-        }
+        await this.advanceToNext(current, false)
       })
     } catch {
       // Prevent crashes from propagating
+    }
+  }
+
+  private async advanceToNext(current: QueueItem, forceAdvance: boolean): Promise<void> {
+    // Schedule items: always use default sequential behavior
+    if (current.schedule_id) {
+      const scheduleId = current.schedule_id
+      let groupId: string | null = null
+
+      const schedule = scheduleRepo.findById(scheduleId)
+      if (schedule) {
+        groupId = schedule.group_id
+        scheduleRepo.updateStatus(scheduleId, 'completed')
+      }
+
+      this.queue.removeFront()
+
+      if (groupId) {
+        const continued = await this.triggerGroupContinuation(groupId)
+        if (continued) return
+      }
+
+      await this.playFront()
+      return
+    }
+
+    // Normal items: respect playback mode
+    const mode = this.getPlaybackMode()
+
+    // repeat-one: replay unless user explicitly skipped
+    if (mode === 'repeat-one' && !forceAdvance) {
+      await this.replayCurrent(current)
+      return
+    }
+
+    switch (mode) {
+      case 'repeat-all':
+        this.queue.moveToBack(current.id)
+        await this.playFront()
+        break
+      case 'shuffle':
+        this.queue.markPlayed(current.id)
+        if (this.queue.findRandomPending()) {
+          await this.playRandom()
+        } else {
+          this.endCycle()
+        }
+        break
+      case 'repeat-one':
+      case 'sequential':
+      default:
+        this.queue.markPlayed(current.id)
+        if (this.queue.findNextPlayable()) {
+          await this.playFront()
+        } else {
+          this.endCycle()
+        }
+        break
     }
   }
 
@@ -605,6 +754,7 @@ export class PlaybackEngine extends EventEmitter {
   }
 
   private endCycle(): void {
+    this.playHistory = []
     this.transitionToIdle()
     // Reset played items after SSE emit (16ms) so frontend sees has_next: false first
     setTimeout(() => {

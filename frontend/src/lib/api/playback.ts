@@ -38,6 +38,20 @@ export function seek(position: number, speakerId?: number | null) {
   })
 }
 
+export function skip(speakerId?: number | null) {
+  return request<{ skipped: boolean }>('/api/skip', {
+    method: 'POST',
+    body: speakerId ? JSON.stringify({ speaker_id: speakerId }) : undefined,
+  })
+}
+
+export function previous(speakerId?: number | null) {
+  return request<{ previous: boolean }>('/api/previous', {
+    method: 'POST',
+    body: speakerId ? JSON.stringify({ speaker_id: speakerId }) : undefined,
+  })
+}
+
 // --- Status ---
 
 export function resolveUrl(url: string) {

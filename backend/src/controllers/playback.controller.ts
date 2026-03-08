@@ -44,6 +44,36 @@ export async function handlePause(
   }
 }
 
+export async function handleSkip(
+  request: FastifyRequest<{ Body: { speaker_id?: number } }>,
+  reply: FastifyReply,
+): Promise<void> {
+  try {
+    const speakerId = (request.body as { speaker_id?: number } | undefined)?.speaker_id
+    const engine = resolveEngine(speakerId)
+    await engine.skip()
+    reply.status(200).send(ok({ skipped: true }))
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    reply.status(500).send(fail('SKIP_ERROR', message))
+  }
+}
+
+export async function handlePrevious(
+  request: FastifyRequest<{ Body: { speaker_id?: number } }>,
+  reply: FastifyReply,
+): Promise<void> {
+  try {
+    const speakerId = (request.body as { speaker_id?: number } | undefined)?.speaker_id
+    const engine = resolveEngine(speakerId)
+    await engine.previous()
+    reply.status(200).send(ok({ previous: true }))
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    reply.status(500).send(fail('PREVIOUS_ERROR', message))
+  }
+}
+
 export async function handleSeek(
   request: FastifyRequest,
   reply: FastifyReply,

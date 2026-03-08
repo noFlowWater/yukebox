@@ -2,8 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { useStatus, EMPTY_STATUS } from '@/contexts/StatusContext'
 import { useSpeaker } from '@/contexts/SpeakerContext'
 import { handleApiError } from '@/lib/utils'
-import type { PlaybackStatus } from '@/types'
+import type { PlaybackStatus, PlaybackMode } from '@/types'
 import * as api from '@/lib/api'
+
+const MODES: PlaybackMode[] = ['sequential', 'repeat-all', 'repeat-one', 'shuffle']
 
 export function usePlayerBar() {
   const { status } = useStatus()
@@ -113,6 +115,33 @@ export function usePlayerBar() {
     }
   }, [activeSpeakerId])
 
+  const handleSkip = useCallback(async () => {
+    try {
+      await api.skip(activeSpeakerId)
+    } catch (err) {
+      handleApiError(err, 'Skip failed')
+    }
+  }, [activeSpeakerId])
+
+  const handlePrevious = useCallback(async () => {
+    try {
+      await api.previous(activeSpeakerId)
+    } catch (err) {
+      handleApiError(err, 'Previous failed')
+    }
+  }, [activeSpeakerId])
+
+  const handleModeChange = useCallback(async () => {
+    const currentMode = status.playback_mode || 'sequential'
+    const nextIndex = (MODES.indexOf(currentMode) + 1) % MODES.length
+    const nextMode = MODES[nextIndex]
+    try {
+      await api.setPlaybackMode(nextMode, activeSpeakerId)
+    } catch (err) {
+      handleApiError(err, 'Mode change failed')
+    }
+  }, [status.playback_mode, activeSpeakerId])
+
   const volumeTarget = useRef<number | null>(null)
 
   // Clear local override once SSE catches up
@@ -183,6 +212,9 @@ export function usePlayerBar() {
     measureRef,
     handlePause,
     handleStop,
+    handleSkip,
+    handlePrevious,
+    handleModeChange,
     handleVolumeDrag,
     handleVolumeCommit,
     handleSeekDrag,

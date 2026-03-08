@@ -6,6 +6,7 @@ import { setupAuth, wrapWithAuth, getAuthCookie } from '../helpers/auth.js'
 
 vi.mock('../../services/ytdlp.service.js', () => ({
   getVideoDetails: vi.fn(),
+  getVideoComments: vi.fn(),
 }))
 
 function buildTestApp() {
@@ -110,6 +111,94 @@ describe('GET /api/youtube/details', () => {
     const response = await app.inject({
       method: 'GET',
       url: '/api/youtube/details?url=' + encodeURIComponent('https://youtube.com/watch?v=abc'),
+      headers: { cookie: authCookie },
+    })
+
+    expect(response.statusCode).toBe(500)
+    expect(response.json().error.code).toBe('YOUTUBE_ERROR')
+  })
+})
+
+describe('GET /api/youtube/comments', () => {
+  let app: ReturnType<typeof buildTestApp>
+  let authCookie: string
+
+  beforeAll(async () => {
+    app = buildTestApp()
+    await app.ready()
+    authCookie = await getAuthCookie()
+  })
+
+  afterAll(async () => {
+    await app.close()
+  })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should return 401 without auth', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/youtube/comments?url=https://youtube.com/watch?v=abc',
+    })
+    expect(response.statusCode).toBe(401)
+  })
+
+  it('should return 200 with pinned and top comments', async () => {
+    const { getVideoComments } = await import('../../services/ytdlp.service.js')
+    vi.mocked(getVideoComments).mockResolvedValueOnce({
+      pinned: { author: 'Creator', text: 'Check timestamps below!', like_count: 100 },
+      top: [{ author: 'User1', text: 'Nice!', like_count: 5 }],
+    })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/youtube/comments?url=' + encodeURIComponent('https://youtube.com/watch?v=abc'),
+      headers: { cookie: authCookie },
+    })
+
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.success).toBe(true)
+    expect(body.data.pinned.author).toBe('Creator')
+    expect(body.data.top).toHaveLength(1)
+  })
+
+  it('should return 200 with empty comments', async () => {
+    const { getVideoComments } = await import('../../services/ytdlp.service.js')
+    vi.mocked(getVideoComments).mockResolvedValueOnce({ pinned: null, top: [] })
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/youtube/comments?url=' + encodeURIComponent('https://youtube.com/watch?v=abc'),
+      headers: { cookie: authCookie },
+    })
+
+    expect(response.statusCode).toBe(200)
+    const body = response.json()
+    expect(body.success).toBe(true)
+    expect(body.data.pinned).toBeNull()
+    expect(body.data.top).toHaveLength(0)
+  })
+
+  it('should return 400 for missing url', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/youtube/comments',
+      headers: { cookie: authCookie },
+    })
+    expect(response.statusCode).toBe(400)
+    expect(response.json().error.code).toBe('VALIDATION_ERROR')
+  })
+
+  it('should return 500 on yt-dlp failure', async () => {
+    const { getVideoComments } = await import('../../services/ytdlp.service.js')
+    vi.mocked(getVideoComments).mockRejectedValueOnce(new Error('Failed to get video comments: timeout'))
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/youtube/comments?url=' + encodeURIComponent('https://youtube.com/watch?v=abc'),
       headers: { cookie: authCookie },
     })
 

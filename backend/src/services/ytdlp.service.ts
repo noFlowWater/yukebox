@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import type { TrackInfo, SearchResult, VideoDetails } from '../types/ytdlp.js'
+import type { TrackInfo, SearchResult, VideoDetails, VideoComment, VideoComments } from '../types/ytdlp.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -110,6 +110,76 @@ export async function getVideoDetails(url: string): Promise<VideoDetails> {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     throw new Error(`Failed to get video details: ${message}`)
+  }
+}
+
+// In-memory cache for video comments (TTL: 10 minutes, max 200 entries)
+const commentsCache = new Map<string, { data: VideoComments; expires: number }>()
+const COMMENTS_CACHE_TTL = 10 * 60 * 1000
+const COMMENTS_CACHE_MAX = 200
+
+function getCachedComments(url: string): VideoComments | null {
+  const entry = commentsCache.get(url)
+  if (!entry) return null
+  if (Date.now() > entry.expires) {
+    commentsCache.delete(url)
+    return null
+  }
+  return entry.data
+}
+
+function setCachedComments(url: string, data: VideoComments): void {
+  if (commentsCache.size >= COMMENTS_CACHE_MAX) {
+    const oldest = commentsCache.keys().next().value
+    if (oldest !== undefined) commentsCache.delete(oldest)
+  }
+  commentsCache.set(url, { data, expires: Date.now() + COMMENTS_CACHE_TTL })
+}
+
+function toVideoComment(c: { author?: string; text?: string; like_count?: number }): VideoComment {
+  return { author: c.author || '', text: c.text || '', like_count: c.like_count ?? 0 }
+}
+
+export async function getVideoComments(url: string): Promise<VideoComments> {
+  const cached = getCachedComments(url)
+  if (cached) return cached
+
+  try {
+    const { stdout } = await execFileAsync('yt-dlp', [
+      '--dump-json',
+      '--no-playlist',
+      '--no-write-info-json',
+      '--write-comments',
+      '--js-runtimes', 'node',
+      '--extractor-args', 'youtube:comment_sort=top;max_comments=50,15,0,0',
+      url,
+    ], { timeout: 20000 })
+
+    const raw = JSON.parse(stdout.trim())
+
+    const empty: VideoComments = { pinned: null, top: [] }
+
+    if (!raw.comments || !Array.isArray(raw.comments) || raw.comments.length === 0) {
+      setCachedComments(url, empty)
+      return empty
+    }
+
+    const rootComments = raw.comments.filter((c: { parent?: string }) => c.parent === 'root')
+    const pinned = rootComments.find((c: { is_pinned?: boolean }) => c.is_pinned === true)
+    const top = rootComments
+      .filter((c: { is_pinned?: boolean }) => c.is_pinned !== true)
+      .map(toVideoComment)
+
+    const result: VideoComments = {
+      pinned: pinned ? toVideoComment(pinned) : null,
+      top,
+    }
+
+    setCachedComments(url, result)
+    return result
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    throw new Error(`Failed to get video comments: ${message}`)
   }
 }
 

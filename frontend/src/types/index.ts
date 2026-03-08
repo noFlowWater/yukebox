@@ -164,6 +164,34 @@ export interface YoutubeDetails {
   duration: number
 }
 
+// Video Comments
+export interface VideoComment {
+  author: string
+  text: string
+  like_count: number
+}
+
+export interface VideoComments {
+  pinned: VideoComment | null
+  top: VideoComment[]
+}
+
+// Video Music
+export interface VideoMusicTrack {
+  url: string
+  title: string
+  thumbnail: string
+  duration: number
+  artist: string
+  album: string
+  albumThumbnail: string
+}
+
+export interface VideoMusic {
+  count: number
+  tracks: VideoMusicTrack[]
+}
+
 // Favorite
 export interface Favorite {
   id: number

@@ -15,6 +15,7 @@ interface AccessibilitySettings {
   textWrap: boolean
   timezone: string
   searchResultCount: number
+  commentCount: number
 }
 
 interface AccessibilityContextValue extends AccessibilitySettings {
@@ -29,6 +30,7 @@ const defaults: AccessibilitySettings = {
   textWrap: false,
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   searchResultCount: 5,
+  commentCount: 5,
 }
 
 const AccessibilityContext = createContext<AccessibilityContextValue | null>(null)

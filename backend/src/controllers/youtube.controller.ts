@@ -1,5 +1,6 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import * as ytdlp from '../services/ytdlp.service.js'
+import { getVideoMusic } from '../services/youtube-music.service.js'
 import { youtubeDetailsSchema } from '../validators/youtube.validator.js'
 import { ok, fail } from '../types/api.js'
 
@@ -23,6 +24,46 @@ export async function handleYoutubeDetails(
       reply.status(404).send(fail('NOT_FOUND', 'Video not found or unavailable'))
       return
     }
+    reply.status(500).send(fail('YOUTUBE_ERROR', message))
+  }
+}
+
+export async function handleComments(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  try {
+    const parsed = youtubeDetailsSchema.safeParse(request.query)
+    if (!parsed.success) {
+      const messages = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`)
+      reply.status(400).send(fail('VALIDATION_ERROR', messages.join('; ')))
+      return
+    }
+
+    const comments = await ytdlp.getVideoComments(parsed.data.url)
+    reply.status(200).send(ok(comments))
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    reply.status(500).send(fail('YOUTUBE_ERROR', message))
+  }
+}
+
+export async function handleMusic(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  try {
+    const parsed = youtubeDetailsSchema.safeParse(request.query)
+    if (!parsed.success) {
+      const messages = parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`)
+      reply.status(400).send(fail('VALIDATION_ERROR', messages.join('; ')))
+      return
+    }
+
+    const music = await getVideoMusic(parsed.data.url)
+    reply.status(200).send(ok(music))
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
     reply.status(500).send(fail('YOUTUBE_ERROR', message))
   }
 }

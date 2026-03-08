@@ -120,9 +120,7 @@ export class PlaybackEngine extends EventEmitter {
 
       // Remove the current playing item
       this.queue.removePlaying()
-      this.state = 'idle'
-      this.stopPositionHeartbeat()
-      this.scheduleStatusEmit()
+      this.transitionToIdle()
     })
   }
 
@@ -134,9 +132,7 @@ export class PlaybackEngine extends EventEmitter {
       this.scheduleStatusEmit()
     } else if (this.state === 'paused') {
       await this.mpv.resume()
-      this.state = 'playing'
-      this.startPositionHeartbeat()
-      this.scheduleStatusEmit()
+      this.transitionToPlaying()
     }
   }
 
@@ -155,11 +151,7 @@ export class PlaybackEngine extends EventEmitter {
     const isPlaying = this.state === 'playing' || this.state === 'loading'
     const isPaused = this.state === 'paused'
 
-    // Check for next playable item
-    const allItems = this.queue.getAll()
-    const hasNext = allItems.some((item) =>
-      item.status === 'pending' || item.status === 'paused'
-    )
+    const hasNext = this.queue.hasNextPlayable()
 
     // Enrich with cached MPV data when connected
     const cached = this.mpv.getCachedPlaybackInfo()
@@ -392,13 +384,9 @@ export class PlaybackEngine extends EventEmitter {
     this.stopPositionHeartbeat()
     try {
       await this.mpv.play(audioUrl, title, startPosition)
-      this.state = 'playing'
-      this.startPositionHeartbeat()
-      this.scheduleStatusEmit()
+      this.transitionToPlaying()
     } catch (err) {
-      this.state = 'idle'
-      this.stopPositionHeartbeat()
-      this.scheduleStatusEmit()
+      this.transitionToIdle()
       throw err
     }
   }
@@ -424,9 +412,7 @@ export class PlaybackEngine extends EventEmitter {
       await this.withMutex(async () => {
         const current = this.queue.front()
         if (!current) {
-          this.state = 'idle'
-          this.stopPositionHeartbeat()
-          this.scheduleStatusEmit()
+          this.transitionToIdle()
           return
         }
 
@@ -527,9 +513,7 @@ export class PlaybackEngine extends EventEmitter {
   private async playRandom(): Promise<void> {
     const item = this.queue.findRandomPending()
     if (!item) {
-      this.state = 'idle'
-      this.stopPositionHeartbeat()
-      this.scheduleStatusEmit()
+      this.transitionToIdle()
       return
     }
 
@@ -549,9 +533,7 @@ export class PlaybackEngine extends EventEmitter {
   private async playFront(): Promise<void> {
     const item = this.queue.findNextPlayable()
     if (!item) {
-      this.state = 'idle'
-      this.stopPositionHeartbeat()
-      this.scheduleStatusEmit()
+      this.transitionToIdle()
       return
     }
 
@@ -598,6 +580,18 @@ export class PlaybackEngine extends EventEmitter {
 
   setSpeakerName(name: string): void {
     this.speakerName = name
+  }
+
+  private transitionToIdle(): void {
+    this.state = 'idle'
+    this.stopPositionHeartbeat()
+    this.scheduleStatusEmit()
+  }
+
+  private transitionToPlaying(): void {
+    this.state = 'playing'
+    this.startPositionHeartbeat()
+    this.scheduleStatusEmit()
   }
 
   private handlePropertyChange(name: string): void {

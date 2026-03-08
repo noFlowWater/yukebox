@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { connect, type Socket } from 'node:net'
 import { EventEmitter } from 'node:events'
 import { mpvSocketPath } from '../config/index.js'
-import type { MpvIpcResponse } from '../types/mpv.js'
+import type { MpvIpcResponse, PlaybackInfo } from '../types/mpv.js'
 
 export class MpvProcess extends EventEmitter {
   readonly speakerId: number
@@ -172,15 +172,7 @@ export class MpvProcess extends EventEmitter {
     }
   }
 
-  getCachedPlaybackInfo(): {
-    playing: boolean
-    paused: boolean
-    title: string
-    url: string
-    duration: number
-    position: number
-    volume: number
-  } {
+  getCachedPlaybackInfo(): PlaybackInfo {
     if (!this.connected) {
       return {
         playing: false,
@@ -206,10 +198,6 @@ export class MpvProcess extends EventEmitter {
       position: isPlaying ? ((this.propertyCache.get('time-pos') as number) || 0) : 0,
       volume: (this.propertyCache.get('volume') as number) || this.currentVolume,
     }
-  }
-
-  updateCachedProperty(name: string, value: unknown): void {
-    this.propertyCache.set(name, value)
   }
 
   private observeProperties(): void {
@@ -292,15 +280,7 @@ export class MpvProcess extends EventEmitter {
     await this.command('seek', seconds, 'absolute')
   }
 
-  async getPlaybackInfo(): Promise<{
-    playing: boolean
-    paused: boolean
-    title: string
-    url: string
-    duration: number
-    position: number
-    volume: number
-  }> {
+  async getPlaybackInfo(): Promise<PlaybackInfo> {
     if (!this.connected) {
       return {
         playing: false,

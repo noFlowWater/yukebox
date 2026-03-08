@@ -124,7 +124,7 @@ export function SearchResults({
       )}
 
       {/* Result list */}
-      <ul className="flex flex-col gap-2 stagger-children">
+      <ul className="flex flex-col gap-2 stagger">
         {results.map((item) => {
           const isSelected = selectedSet.has(item.url)
           const selectionIndex = selectedOrder.indexOf(item.url)

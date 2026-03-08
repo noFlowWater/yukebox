@@ -62,7 +62,7 @@ export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSched
       )}
 
       <div className="overflow-x-hidden">
-        <ul className="flex flex-col gap-1 stagger-children">
+        <ul className="flex flex-col gap-1 stagger">
           {favorites.map((item) => {
             const isScheduleOpen = scheduleOpenId === item.id
             const isSelected = selectedSet.has(item.url)

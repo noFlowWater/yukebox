@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Play, Pause, Square, Volume2, Music, Search } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
@@ -35,9 +36,15 @@ export function PlayerBar({ onSearchClick }: PlayerBarProps) {
   } = usePlayerBar()
 
   const { speakers, activeSpeakerId } = useSpeaker()
-  const activeSpeaker = speakers.find((s) => s.id === activeSpeakerId)
+  const activeSpeaker = useMemo(
+    () => speakers.find((s) => s.id === activeSpeakerId),
+    [speakers, activeSpeakerId],
+  )
 
-  const thumbnail = getYoutubeThumbnail(displayStatus.url)
+  const thumbnail = useMemo(
+    () => getYoutubeThumbnail(displayStatus.url),
+    [displayStatus.url],
+  )
   const duration = status.duration || displayStatus.duration || 0
 
   // ── Idle state ──

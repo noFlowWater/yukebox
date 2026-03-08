@@ -74,8 +74,8 @@ export function SchedulePanel({ onOpenDetail }: SchedulePanelProps) {
         </Button>
       </div>
 
-      <div className="max-h-[50vh] overflow-y-auto">
-        <ul className="flex flex-col gap-2">
+      <div>
+        <ul className="flex flex-col gap-2 stagger-children">
           {schedules.map((schedule) => {
             const effectiveStatus = getEffectiveStatus(schedule)
             const config = STATUS_CONFIG[effectiveStatus]
@@ -85,7 +85,7 @@ export function SchedulePanel({ onOpenDetail }: SchedulePanelProps) {
             return (
               <li
                 key={schedule.id}
-                className="rounded-lg border border-border bg-card p-3 hover:bg-muted/30 transition-colors overflow-hidden"
+                className="rounded-xl border border-border/50 bg-card/70 backdrop-blur-sm p-3 hover:bg-card/90 transition-all overflow-hidden"
               >
                 <div className="flex items-start gap-2">
                   {/* Thumbnail */}

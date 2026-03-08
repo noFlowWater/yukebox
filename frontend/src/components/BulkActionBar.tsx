@@ -29,7 +29,7 @@ export function BulkActionBar({
   timezone,
 }: BulkActionBarProps) {
   return (
-    <div className="mt-3 flex items-center gap-2 p-2 rounded-lg bg-muted/70 border border-border">
+    <div className="mt-3 flex items-center gap-2 p-2 rounded-xl bg-card/80 backdrop-blur-md border border-border/50 shadow-lg animate-fade-in-up">
       <Button
         variant="ghost"
         size="icon"

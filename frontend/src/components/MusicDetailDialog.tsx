@@ -60,7 +60,7 @@ export function MusicDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[480px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden p-0 gap-0 sm:rounded-lg">
+      <DialogContent className="max-w-[480px] w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden p-0 gap-0 sm:rounded-2xl border-border/50">
         <DialogTitle className="sr-only">{item?.title || 'Music Details'}</DialogTitle>
 
         {isLoading ? (
@@ -105,7 +105,7 @@ export function MusicDetailDialog({
 
             <div className="p-4 flex flex-col gap-3 min-w-0">
               {/* Title */}
-              <h2 className="text-base font-semibold leading-snug break-words">
+              <h2 className="text-base font-display font-semibold leading-snug break-words">
                 {details.title || item?.title}
               </h2>
 

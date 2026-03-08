@@ -3,61 +3,66 @@
 @tailwind utilities;
 
 @layer base {
+  /* ── Dark theme — Terracotta Nights ── */
   :root {
-    --background: 0 0% 5%;
-    --foreground: 0 0% 96%;
-    --card: 0 0% 10%;
-    --card-foreground: 0 0% 96%;
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --primary: 38 92% 50%;
-    --primary-foreground: 0 0% 5%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 45%;
-    --popover: 0 0% 14%;
-    --popover-foreground: 0 0% 96%;
-    --accent: 0 0% 18%;
-    --accent-foreground: 0 0% 96%;
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 96%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 96%;
-    --ring: 38 92% 50%;
-    --success: 142 71% 45%;
+    --background: 260 15% 7%;
+    --foreground: 35 20% 93%;
+    --card: 260 10% 11%;
+    --card-foreground: 35 20% 93%;
+    --border: 260 8% 18%;
+    --input: 260 8% 18%;
+    --primary: 16 65% 56%;
+    --primary-foreground: 35 20% 95%;
+    --muted: 260 6% 14%;
+    --muted-foreground: 35 8% 50%;
+    --popover: 260 10% 13%;
+    --popover-foreground: 35 20% 93%;
+    --accent: 260 8% 18%;
+    --accent-foreground: 35 20% 93%;
+    --secondary: 260 6% 14%;
+    --secondary-foreground: 35 20% 93%;
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 35 20% 93%;
+    --ring: 16 65% 56%;
+    --success: 160 35% 45%;
     --success-foreground: 0 0% 100%;
-    --radius: 0.5rem;
+    --warning: 38 70% 55%;
+    --warning-foreground: 0 0% 100%;
+    --radius: 0.75rem;
   }
 
-  /* Light theme */
+  /* ── Light theme ── */
   .light {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 5%;
-    --card: 0 0% 97%;
-    --card-foreground: 0 0% 5%;
-    --border: 0 0% 85%;
-    --input: 0 0% 85%;
-    --primary: 38 92% 50%;
+    --background: 35 25% 96%;
+    --foreground: 260 15% 12%;
+    --card: 35 20% 92%;
+    --card-foreground: 260 15% 12%;
+    --border: 35 12% 84%;
+    --input: 35 12% 84%;
+    --primary: 16 70% 48%;
     --primary-foreground: 0 0% 100%;
-    --muted: 0 0% 93%;
-    --muted-foreground: 0 0% 40%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 5%;
-    --accent: 0 0% 93%;
-    --accent-foreground: 0 0% 5%;
-    --secondary: 0 0% 93%;
-    --secondary-foreground: 0 0% 5%;
-    --destructive: 0 84% 60%;
+    --muted: 35 12% 88%;
+    --muted-foreground: 260 8% 40%;
+    --popover: 35 25% 96%;
+    --popover-foreground: 260 15% 12%;
+    --accent: 35 12% 88%;
+    --accent-foreground: 260 15% 12%;
+    --secondary: 35 12% 88%;
+    --secondary-foreground: 260 15% 12%;
+    --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
-    --ring: 38 92% 50%;
-    --success: 142 71% 45%;
+    --ring: 16 70% 48%;
+    --success: 160 35% 42%;
     --success-foreground: 0 0% 100%;
+    --warning: 38 70% 50%;
+    --warning-foreground: 0 0% 100%;
   }
 
-  /* Text scale */
+  /* ── Text scale ── */
   :root[data-text-scale="large"] { font-size: 18px; }
   :root[data-text-scale="x-large"] { font-size: 20px; }
 
-  /* Reduced motion */
+  /* ── Reduced motion ── */
   :root[data-reduce-motion="true"] *,
   :root[data-reduce-motion="true"] *::before,
   :root[data-reduce-motion="true"] *::after {
@@ -65,21 +70,21 @@
     transition-duration: 0s !important;
   }
 
-  /* High contrast — dark */
+  /* ── High contrast — dark ── */
   :root[data-high-contrast="true"] {
     --foreground: 0 0% 100%;
-    --muted-foreground: 0 0% 65%;
-    --border: 0 0% 35%;
+    --muted-foreground: 35 8% 68%;
+    --border: 260 8% 32%;
   }
 
-  /* High contrast — light */
+  /* ── High contrast — light ── */
   .light[data-high-contrast="true"] {
     --foreground: 0 0% 0%;
-    --muted-foreground: 0 0% 25%;
-    --border: 0 0% 30%;
+    --muted-foreground: 260 8% 28%;
+    --border: 35 12% 45%;
   }
 
-  /* Text wrap — show full text in content areas only (excludes portals/overlays/player bar) */
+  /* ── Text wrap ── */
   :root[data-text-wrap="true"] main .truncate {
     overflow: visible !important;
     text-overflow: clip !important;
@@ -93,22 +98,96 @@
     display: block !important;
   }
 
-  @keyframes marquee {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-  }
-
   * {
     @apply border-border;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
+}
+
+/* ── Keyframes ── */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@keyframes eq-bar {
+  0%, 100% { height: 3px; }
+  50% { height: 14px; }
+}
+
+@keyframes slide-overlay {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @layer utilities {
   .animate-marquee {
     animation: marquee 25s linear infinite;
   }
+
+  .animate-fade-in {
+    animation: fade-in 0.4s ease-out both;
+  }
+
+  .animate-slide-overlay {
+    animation: slide-overlay 0.3s ease-out both;
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 8s linear infinite;
+  }
+
+  .animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+
+  /* Stagger children */
+  .stagger > * {
+    animation: fade-in 0.3s ease-out both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger > *:nth-child(6) { animation-delay: 200ms; }
+  .stagger > *:nth-child(7) { animation-delay: 240ms; }
+  .stagger > *:nth-child(8) { animation-delay: 280ms; }
+  .stagger > *:nth-child(9) { animation-delay: 320ms; }
+  .stagger > *:nth-child(10) { animation-delay: 360ms; }
+
+  /* EQ bars */
+  .eq-bar {
+    width: 3px;
+    border-radius: 2px;
+    background: hsl(var(--primary));
+    animation: eq-bar 0.7s ease-in-out infinite;
+  }
+  .eq-bar:nth-child(1) { animation-delay: 0s; }
+  .eq-bar:nth-child(2) { animation-delay: 0.15s; }
+  .eq-bar:nth-child(3) { animation-delay: 0.3s; }
+  .eq-bar:nth-child(4) { animation-delay: 0.1s; }
 }

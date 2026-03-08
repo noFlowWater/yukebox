@@ -124,7 +124,7 @@ export function SearchResults({
       )}
 
       {/* Result list */}
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-2 stagger-children">
         {results.map((item) => {
           const isSelected = selectedSet.has(item.url)
           const selectionIndex = selectedOrder.indexOf(item.url)
@@ -133,8 +133,8 @@ export function SearchResults({
           return (
             <li
               key={item.url}
-              className={`flex items-start gap-3 p-2 rounded-lg transition-colors ${
-                isSelected ? 'bg-muted/70' : 'hover:bg-muted/50'
+              className={`flex items-start gap-3 p-2.5 rounded-xl transition-all ${
+                isSelected ? 'bg-card/80 border border-primary/20' : 'hover:bg-card/60'
               }`}
             >
               <SelectableCheckbox

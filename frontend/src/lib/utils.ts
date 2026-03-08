@@ -120,3 +120,9 @@ export function handleApiError(err: unknown, fallback: string): void {
 export function toMediaItem(item: { url: string; title: string; thumbnail: string; duration: number }): SearchResult {
   return { url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }
 }
+
+export function getYoutubeThumbnail(url: string): string | null {
+  if (!url) return null
+  const match = url.match(/(?:v=|youtu\.be\/|\/v\/)([\w-]{11})/)
+  return match ? `https://img.youtube.com/vi/${match[1]}/hqdefault.jpg` : null
+}

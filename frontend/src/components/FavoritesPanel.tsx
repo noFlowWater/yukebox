@@ -1,8 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
 import { Heart, Play, ListPlus, Clock, X } from 'lucide-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -10,14 +8,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ScheduleTimePicker } from '@/components/ScheduleTimePicker'
 import { SelectableCheckbox } from '@/components/SelectableCheckbox'
 import { BulkActionBar } from '@/components/BulkActionBar'
-import { useMultiSelect } from '@/hooks/useMultiSelect'
 import Image from 'next/image'
 import { ClickableThumbnail } from '@/components/ClickableThumbnail'
 import { ClickableTitle } from '@/components/ClickableTitle'
-import { formatDuration, handleApiError } from '@/lib/utils'
-import { useAccessibility } from '@/contexts/AccessibilityContext'
-import * as api from '@/lib/api'
-import type { Favorite, SearchResult } from '@/types'
+import { formatDuration } from '@/lib/utils'
+import { useFavoritesPanel } from '@/hooks/useFavoritesPanel'
+import type { SearchResult } from '@/types'
 
 interface FavoritesPanelProps {
   onPlay: (item: SearchResult) => void
@@ -28,75 +24,13 @@ interface FavoritesPanelProps {
 }
 
 export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSchedule, onOpenDetail }: FavoritesPanelProps) {
-  const { timezone } = useAccessibility()
-  const [favorites, setFavorites] = useState<Favorite[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [scheduleOpenId, setScheduleOpenId] = useState<number | null>(null)
-  const [bulkScheduleOpen, setBulkScheduleOpen] = useState(false)
-
   const {
-    selectedOrder, selectedSet, selectedItems, totalDuration,
+    favorites, isLoading, scheduleOpenId, bulkScheduleOpen, timezone,
+    selectedOrder, selectedSet, selectedItems, totalDuration, allSelected,
+    setScheduleOpenId, setBulkScheduleOpen,
     toggleSelect, toggleAll, clearSelection,
-  } = useMultiSelect(favorites)
-
-  const handleBulkQueue = useCallback(() => {
-    onBulkAddToQueue(selectedItems.map((f) => ({ url: f.url, title: f.title, thumbnail: f.thumbnail, duration: f.duration })))
-    clearSelection()
-  }, [selectedItems, onBulkAddToQueue, clearSelection])
-
-  const handleBulkSchedule = useCallback(
-    (scheduledAt: string) => {
-      onSchedule(
-        selectedItems.map((f) => ({ url: f.url, title: f.title, thumbnail: f.thumbnail, duration: f.duration })),
-        scheduledAt
-      )
-      clearSelection()
-      setBulkScheduleOpen(false)
-    },
-    [selectedItems, onSchedule, clearSelection]
-  )
-
-  const fetchFavorites = useCallback(async () => {
-    try {
-      const items = await api.getFavorites()
-      setFavorites(items)
-    } catch {
-      // silent on fetch errors
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchFavorites()
-    const onUpdate = () => fetchFavorites()
-    window.addEventListener('favorites-updated', onUpdate)
-    return () => {
-      window.removeEventListener('favorites-updated', onUpdate)
-    }
-  }, [fetchFavorites])
-
-  const handleRemove = useCallback(async (id: number, url: string) => {
-    setFavorites((prev) => prev.filter((f) => f.id !== id))
-    clearSelection()
-    try {
-      await api.removeFavorite(id)
-      window.dispatchEvent(new Event('favorites-updated'))
-    } catch (err) {
-      handleApiError(err, 'Failed to remove favorite')
-      fetchFavorites()
-    }
-  }, [fetchFavorites, clearSelection])
-
-  const handleSchedule = useCallback((item: Favorite, scheduledAt: string) => {
-    onSchedule([{
-      url: item.url,
-      title: item.title,
-      thumbnail: item.thumbnail,
-      duration: item.duration,
-    }], scheduledAt)
-    setScheduleOpenId(null)
-  }, [onSchedule])
+    handleBulkQueue, handleBulkSchedule, handleRemove, handleSchedule,
+  } = useFavoritesPanel({ onBulkAddToQueue, onSchedule })
 
   if (isLoading) {
     return (
@@ -123,8 +57,6 @@ export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSched
       </div>
     )
   }
-
-  const allSelected = selectedOrder.length === favorites.length
 
   return (
     <div className="overflow-hidden">
@@ -232,7 +164,7 @@ export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSched
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-destructive hover:text-destructive"
-                        onClick={() => handleRemove(item.id, item.url)}
+                        onClick={() => handleRemove(item.id)}
                         aria-label="Remove from favorites"
                         title="Remove from favorites"
                       >

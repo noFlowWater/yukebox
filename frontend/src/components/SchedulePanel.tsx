@@ -28,15 +28,16 @@ const STATUS_CONFIG: Record<string, { label: string; variant: 'primary' | 'succe
 }
 
 interface SchedulePanelProps {
+  active?: boolean
   onOpenDetail: (item: { url: string; title: string; thumbnail: string; duration: number }) => void
 }
 
-export function SchedulePanel({ onOpenDetail }: SchedulePanelProps) {
+export function SchedulePanel({ active = true, onOpenDetail }: SchedulePanelProps) {
   const {
     schedules, isLoading, editingScheduleId, timezone,
     setEditingScheduleId, handleDelete, handleDeleteAll, handleUpdateTime,
     getEffectiveStatus, getScheduleRelTime,
-  } = useSchedulePanel()
+  } = useSchedulePanel(active)
 
   if (isLoading) {
     return (

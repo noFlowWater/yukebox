@@ -75,7 +75,7 @@ export function SchedulePanel({ onOpenDetail }: SchedulePanelProps) {
       </div>
 
       <div>
-        <ul className="flex flex-col gap-2 stagger-children">
+        <ul className="flex flex-col gap-2 stagger">
           {schedules.map((schedule) => {
             const effectiveStatus = getEffectiveStatus(schedule)
             const config = STATUS_CONFIG[effectiveStatus]

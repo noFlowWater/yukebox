@@ -35,6 +35,7 @@ function nearestSnap(top: number, vh: number): SheetSnap {
 export function useBottomSheet({ defaultSnap = 'peek' }: UseBottomSheetOptions = {}) {
   const [snap, setSnap] = useState<SheetSnap>(defaultSnap)
   const [isDragging, setIsDragging] = useState(false)
+  const snapRef = useRef<SheetSnap>(defaultSnap)
   const sheetRef = useRef<HTMLDivElement>(null)
   const handleRef = useRef<HTMLDivElement>(null)
   const currentTop = useRef(0)
@@ -80,6 +81,7 @@ export function useBottomSheet({ defaultSnap = 'peek' }: UseBottomSheetOptions =
   const animateTo = useCallback((targetSnap: SheetSnap) => {
     const top = getTop(targetSnap, vh.current)
     applyTop(top, 'top 0.35s cubic-bezier(0.32, 0.72, 0, 1)')
+    snapRef.current = targetSnap
     setSnap(targetSnap)
     setIsDragging(false)
   }, [applyTop])
@@ -147,17 +149,18 @@ export function useBottomSheet({ defaultSnap = 'peek' }: UseBottomSheetOptions =
     let targetSnap: SheetSnap
 
     if (Math.abs(v) > VELOCITY_THRESHOLD) {
+      const current = snapRef.current
       if (v > 0) {
-        targetSnap = snap === 'full' ? 'half' : 'peek'
+        targetSnap = current === 'full' ? 'half' : 'peek'
       } else {
-        targetSnap = snap === 'peek' ? 'half' : 'full'
+        targetSnap = current === 'peek' ? 'half' : 'full'
       }
     } else {
       targetSnap = nearestSnap(currentTop.current, vh.current)
     }
 
     animateTo(targetSnap)
-  }, [snap, animateTo])
+  }, [animateTo])
 
   const snapTo = useCallback((target: SheetSnap) => {
     animateTo(target)

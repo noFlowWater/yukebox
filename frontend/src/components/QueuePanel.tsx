@@ -68,7 +68,7 @@ export function QueuePanel({ onOpenDetail }: QueuePanelProps) {
       </div>
 
       <div className="overflow-x-hidden">
-        <ul className="flex flex-col gap-1 stagger-children">
+        <ul className="flex flex-col gap-1 stagger">
           {queue.map((item, index) => (
             <QueueItem
               key={item.id}

@@ -9,11 +9,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/hooks/useAuth'
+import { useSpeaker } from '@/contexts/SpeakerContext'
 import * as api from '@/lib/api'
 
 export default function LoginPage() {
   const router = useRouter()
   const { setUser } = useAuth()
+  const { refreshSpeakers } = useSpeaker()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -27,6 +29,7 @@ export default function LoginPage() {
     try {
       const user = await api.login(username, password)
       setUser(user)
+      await refreshSpeakers()
       router.push('/')
     } catch (err) {
       setError(err instanceof api.ApiError ? err.message : 'Login failed')

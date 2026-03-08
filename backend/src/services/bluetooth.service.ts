@@ -254,20 +254,25 @@ export async function connectDevice(address: string): Promise<ConnectResult> {
     let autoRegistered = false
     let speakerId: number | null = null
 
-    const existingSpeaker = speakerRepo.findByBtDeviceId(device.id)
-    if (existingSpeaker) {
-      speakerId = existingSpeaker.id
-    } else if (settingsService.getBtAutoRegister() && sinkName) {
-      const displayName = info.name || address
-      const speaker = speakerRepo.insertWithBtDevice(sinkName, displayName, device.id)
+    try {
+      const existingSpeaker = speakerRepo.findByBtDeviceId(device.id)
+      if (existingSpeaker) {
+        speakerId = existingSpeaker.id
+      } else if (settingsService.getBtAutoRegister() && sinkName) {
+        const displayName = info.name || address
+        const speaker = speakerRepo.insertWithBtDevice(sinkName, displayName, device.id)
 
-      if (speakerRepo.count() === 1) {
-        speakerRepo.setDefault(speaker.id)
+        if (speakerRepo.count() === 1) {
+          speakerRepo.setDefault(speaker.id)
+        }
+
+        playbackManager.getOrCreateEngine(speaker.id)
+        autoRegistered = true
+        speakerId = speaker.id
       }
-
-      playbackManager.getOrCreateEngine(speaker.id)
-      autoRegistered = true
-      speakerId = speaker.id
+    } catch {
+      // speaker registration or engine creation failed — non-critical
+      // BT connection itself succeeded, so we continue with the response
     }
 
     intentionalDisconnects.delete(address)

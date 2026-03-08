@@ -93,11 +93,13 @@ export function useAdminBluetooth({ onSpeakersChanged }: UseAdminBluetoothParams
       } else {
         toast.success(`Connected: ${result.name}`)
       }
-      await fetchBluetoothDevices()
-      await onSpeakersChanged()
     } catch (err) {
       handleApiError(err, 'Failed to connect')
     } finally {
+      // Always refresh device list and speakers — BT may have connected
+      // even if the API returned an error (e.g. engine creation failed)
+      await fetchBluetoothDevices()
+      await onSpeakersChanged()
       setConnectingAddress(null)
     }
   }

@@ -21,6 +21,7 @@ export class MpvProcess extends EventEmitter {
   private trackTitle: string | null = null
   private currentVolume = 60
   private destroyed = false
+  private propertyCache = new Map<string, unknown>()
 
   constructor(speakerId: number, sinkName: string) {
     super()
@@ -83,6 +84,7 @@ export class MpvProcess extends EventEmitter {
           this.socket = socket
           this.connected = true
           this.connectRetries = 0
+          this.initPropertyCache()
           this.setupSocketListeners()
           this.observeProperties()
           resolve()
@@ -130,6 +132,16 @@ export class MpvProcess extends EventEmitter {
     })
   }
 
+  private initPropertyCache(): void {
+    this.propertyCache.set('pause', false)
+    this.propertyCache.set('media-title', '')
+    this.propertyCache.set('duration', 0)
+    this.propertyCache.set('time-pos', 0)
+    this.propertyCache.set('volume', this.currentVolume)
+    this.propertyCache.set('path', '')
+    this.propertyCache.set('idle-active', true)
+  }
+
   private handleMessage(msg: MpvIpcResponse): void {
     if (msg.request_id !== undefined) {
       const pending = this.pendingRequests.get(msg.request_id)
@@ -144,6 +156,12 @@ export class MpvProcess extends EventEmitter {
       return
     }
 
+    if (msg.event === 'property-change' && msg.name) {
+      this.propertyCache.set(msg.name, msg.data)
+      this.emit('property-change', msg.name, msg.data)
+      return
+    }
+
     if (msg.event === 'end-file') {
       if (msg.reason === 'eof') {
         this.emit('track-end')
@@ -152,6 +170,46 @@ export class MpvProcess extends EventEmitter {
       }
       // 'stop' reason = loadfile replace, ignore (not a real track end)
     }
+  }
+
+  getCachedPlaybackInfo(): {
+    playing: boolean
+    paused: boolean
+    title: string
+    url: string
+    duration: number
+    position: number
+    volume: number
+  } {
+    if (!this.connected) {
+      return {
+        playing: false,
+        paused: false,
+        title: '',
+        url: '',
+        duration: 0,
+        position: 0,
+        volume: this.currentVolume,
+      }
+    }
+
+    const idle = this.propertyCache.get('idle-active') as boolean
+    const path = this.propertyCache.get('path') as string
+    const isPlaying = !idle && !!path
+
+    return {
+      playing: isPlaying,
+      paused: (this.propertyCache.get('pause') as boolean) || false,
+      title: isPlaying ? (this.trackTitle || (this.propertyCache.get('media-title') as string) || '') : '',
+      url: isPlaying ? (path || '') : '',
+      duration: isPlaying ? ((this.propertyCache.get('duration') as number) || 0) : 0,
+      position: isPlaying ? ((this.propertyCache.get('time-pos') as number) || 0) : 0,
+      volume: (this.propertyCache.get('volume') as number) || this.currentVolume,
+    }
+  }
+
+  updateCachedProperty(name: string, value: unknown): void {
+    this.propertyCache.set(name, value)
   }
 
   private observeProperties(): void {
@@ -196,6 +254,10 @@ export class MpvProcess extends EventEmitter {
     await this.setProperty('pause', false)
     await this.setProperty('volume', this.currentVolume)
     this.trackTitle = title ?? null
+
+    // Eagerly update cache before mpv events arrive
+    this.propertyCache.set('time-pos', 0)
+    this.propertyCache.set('idle-active', false)
   }
 
   async stopPlayback(): Promise<void> {
@@ -218,6 +280,7 @@ export class MpvProcess extends EventEmitter {
 
   async setVolume(volume: number): Promise<void> {
     this.currentVolume = volume
+    this.propertyCache.set('volume', volume)
     try {
       await this.setProperty('volume', volume)
     } catch {
@@ -348,6 +411,7 @@ export class MpvProcess extends EventEmitter {
     this.trackTitle = null
     this.connectRetries = 0
     this.buffer = ''
+    this.propertyCache.clear()
   }
 
   async destroy(): Promise<void> {

@@ -1,7 +1,7 @@
 import { PlaybackEngine } from './playback-engine.js'
 import * as scheduleRepo from '../repositories/schedule.repository.js'
 import * as speakerRepo from '../repositories/speaker.repository.js'
-import type { MpvStatus } from '../types/mpv.js'
+import { EMPTY_STATUS, type MpvStatus } from '../types/mpv.js'
 
 class PlaybackManager {
   private engines = new Map<number, PlaybackEngine>()
@@ -132,25 +132,17 @@ class PlaybackManager {
 
   async getAllStatusesAsync(): Promise<MpvStatus[]> {
     const speakers = speakerRepo.findAll()
-    const promises = speakers.map(async (speaker) => {
+    return speakers.map((speaker) => {
       const engine = this.getEngine(speaker.id)
       if (!engine) {
         return {
-          playing: false,
-          paused: false,
-          title: '',
-          url: '',
-          duration: 0,
-          position: 0,
-          volume: 60,
+          ...EMPTY_STATUS,
           speaker_id: speaker.id,
           speaker_name: speaker.display_name,
-          has_next: false,
-        } satisfies MpvStatus
+        }
       }
-      return engine.getStatusAsync()
+      return engine.getStatus()
     })
-    return Promise.all(promises)
   }
 }
 

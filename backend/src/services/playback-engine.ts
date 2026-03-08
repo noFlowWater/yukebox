@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events'
 import { MpvProcess } from './mpv-process.js'
 import { QueueManager } from './queue-manager.js'
 import * as ytdlp from './ytdlp.service.js'
@@ -15,7 +16,7 @@ export interface PlayResult {
   duration: number
 }
 
-export class PlaybackEngine {
+export class PlaybackEngine extends EventEmitter {
   readonly speakerId: number
   private mpv: MpvProcess
   private queue: QueueManager
@@ -24,8 +25,12 @@ export class PlaybackEngine {
   private pendingCommands: Array<() => void> = []
   private speakerName: string
   private defaultVolume: number
+  private emitTimer: ReturnType<typeof setTimeout> | null = null
+  private positionHeartbeat: ReturnType<typeof setInterval> | null = null
 
   constructor(speakerId: number) {
+    super()
+    this.setMaxListeners(50)
     this.speakerId = speakerId
 
     const speaker = speakerRepo.findById(speakerId)
@@ -40,6 +45,7 @@ export class PlaybackEngine {
     this.mpv.on('track-end', () => this.handleTrackEnd())
     this.mpv.on('track-error', () => this.handleTrackError())
     this.mpv.on('process-exit', () => this.handleProcessExit())
+    this.mpv.on('property-change', (name: string, _value: unknown) => this.handlePropertyChange(name))
   }
 
   // --- Playback actions ---
@@ -115,6 +121,8 @@ export class PlaybackEngine {
       // Remove the current playing item
       this.queue.removePlaying()
       this.state = 'idle'
+      this.stopPositionHeartbeat()
+      this.scheduleStatusEmit()
     })
   }
 
@@ -122,15 +130,20 @@ export class PlaybackEngine {
     if (this.state === 'playing') {
       await this.mpv.pause()
       this.state = 'paused'
+      this.stopPositionHeartbeat()
+      this.scheduleStatusEmit()
     } else if (this.state === 'paused') {
       await this.mpv.resume()
       this.state = 'playing'
+      this.startPositionHeartbeat()
+      this.scheduleStatusEmit()
     }
   }
 
   async setVolume(volume: number): Promise<void> {
     this.defaultVolume = volume
     await this.mpv.setVolume(volume)
+    this.scheduleStatusEmit()
   }
 
   async seek(position: number): Promise<void> {
@@ -148,14 +161,17 @@ export class PlaybackEngine {
       item.status === 'pending' || item.status === 'paused'
     )
 
+    // Enrich with cached MPV data when connected
+    const cached = this.mpv.getCachedPlaybackInfo()
+
     return {
       playing: isPlaying,
       paused: isPaused,
       title: (isPlaying || isPaused) && front ? front.title : '',
       url: (isPlaying || isPaused) && front ? front.url : '',
-      duration: (isPlaying || isPaused) && front ? front.duration : 0,
-      position: 0, // Will be updated by getStatusAsync
-      volume: this.defaultVolume,
+      duration: (isPlaying || isPaused) && front ? (cached.duration || front.duration) : 0,
+      position: (isPlaying || isPaused) ? cached.position : 0,
+      volume: cached.volume ?? this.defaultVolume,
       speaker_id: this.speakerId,
       speaker_name: this.speakerName,
       has_next: hasNext,
@@ -163,22 +179,7 @@ export class PlaybackEngine {
   }
 
   async getStatusAsync(): Promise<MpvStatus> {
-    const base = this.getStatus()
-
-    if (this.mpv.isConnected() && (this.state === 'playing' || this.state === 'paused')) {
-      try {
-        const info = await this.mpv.getPlaybackInfo()
-        base.position = info.position
-        base.volume = info.volume
-        base.playing = info.playing
-        base.paused = info.paused
-        if (info.title) base.title = info.title
-      } catch {
-        // Use base status on error
-      }
-    }
-
-    return base
+    return this.getStatus()
   }
 
   // --- Queue actions ---
@@ -218,7 +219,9 @@ export class PlaybackEngine {
       throw new Error('Either url or query is required')
     }
 
-    return this.queue.append({ url, title, thumbnail, duration })
+    const item = this.queue.append({ url, title, thumbnail, duration })
+    this.scheduleStatusEmit()
+    return item
   }
 
   async addToQueueBulk(
@@ -249,23 +252,32 @@ export class PlaybackEngine {
       }
     }
 
-    return this.queue.appendBulk(resolved)
+    const added = this.queue.appendBulk(resolved)
+    this.scheduleStatusEmit()
+    return added
   }
 
   removeFromQueue(id: number): boolean {
-    return this.queue.remove(id)
+    const result = this.queue.remove(id)
+    this.scheduleStatusEmit()
+    return result
   }
 
   reorderQueue(id: number, newPos: number): boolean {
-    return this.queue.reorder(id, newPos)
+    const result = this.queue.reorder(id, newPos)
+    this.scheduleStatusEmit()
+    return result
   }
 
   shuffleQueue(): void {
     this.queue.shuffle()
+    this.scheduleStatusEmit()
   }
 
   clearQueue(): number {
-    return this.queue.clearPending()
+    const count = this.queue.clearPending()
+    this.scheduleStatusEmit()
+    return count
   }
 
   async playFromQueue(id: number): Promise<QueueItem | null> {
@@ -375,13 +387,18 @@ export class PlaybackEngine {
 
   // --- Internal ---
 
-  private async startPlayback(audioUrl: string, title: string): Promise<void> {
+  private async startPlayback(audioUrl: string, title: string, startPosition?: number): Promise<void> {
     this.state = 'loading'
+    this.stopPositionHeartbeat()
     try {
-      await this.mpv.play(audioUrl, title)
+      await this.mpv.play(audioUrl, title, startPosition)
       this.state = 'playing'
+      this.startPositionHeartbeat()
+      this.scheduleStatusEmit()
     } catch (err) {
       this.state = 'idle'
+      this.stopPositionHeartbeat()
+      this.scheduleStatusEmit()
       throw err
     }
   }
@@ -408,6 +425,8 @@ export class PlaybackEngine {
         const current = this.queue.front()
         if (!current) {
           this.state = 'idle'
+          this.stopPositionHeartbeat()
+          this.scheduleStatusEmit()
           return
         }
 
@@ -497,9 +516,7 @@ export class PlaybackEngine {
   private async replayCurrent(item: QueueItem): Promise<void> {
     try {
       const track = await ytdlp.resolve(item.url)
-      this.state = 'loading'
-      await this.mpv.play(track.audioUrl, item.title)
-      this.state = 'playing'
+      await this.startPlayback(track.audioUrl, item.title)
     } catch {
       // Failed to replay — fall back to sequential advance
       this.queue.removeFront()
@@ -511,6 +528,8 @@ export class PlaybackEngine {
     const item = this.queue.findRandomPending()
     if (!item) {
       this.state = 'idle'
+      this.stopPositionHeartbeat()
+      this.scheduleStatusEmit()
       return
     }
 
@@ -519,10 +538,7 @@ export class PlaybackEngine {
     try {
       const track = await ytdlp.resolve(item.url)
       const startPosition = item.status === 'paused' ? (item.paused_position ?? undefined) : undefined
-
-      this.state = 'loading'
-      await this.mpv.play(track.audioUrl, item.title, startPosition)
-      this.state = 'playing'
+      await this.startPlayback(track.audioUrl, item.title, startPosition)
     } catch {
       // yt-dlp failed — remove and try another random
       this.queue.remove(item.id)
@@ -534,6 +550,8 @@ export class PlaybackEngine {
     const item = this.queue.findNextPlayable()
     if (!item) {
       this.state = 'idle'
+      this.stopPositionHeartbeat()
+      this.scheduleStatusEmit()
       return
     }
 
@@ -553,10 +571,7 @@ export class PlaybackEngine {
     try {
       const track = await ytdlp.resolve(item.url)
       const startPosition = item.status === 'paused' ? (item.paused_position ?? undefined) : undefined
-
-      this.state = 'loading'
-      await this.mpv.play(track.audioUrl, item.title, startPosition)
-      this.state = 'playing'
+      await this.startPlayback(track.audioUrl, item.title, startPosition)
     } catch {
       // yt-dlp failed — remove and try next
       this.queue.remove(item.id)
@@ -585,7 +600,41 @@ export class PlaybackEngine {
     this.speakerName = name
   }
 
+  private handlePropertyChange(name: string): void {
+    if (name === 'time-pos') return
+    this.scheduleStatusEmit()
+  }
+
+  private scheduleStatusEmit(): void {
+    if (this.state === 'loading') return
+    if (this.emitTimer) return
+    this.emitTimer = setTimeout(() => {
+      this.emitTimer = null
+      this.emit('status-change', this.getStatus())
+    }, 16)
+  }
+
+  private startPositionHeartbeat(): void {
+    this.stopPositionHeartbeat()
+    this.positionHeartbeat = setInterval(() => {
+      this.emit('status-change', this.getStatus())
+    }, 2000)
+  }
+
+  private stopPositionHeartbeat(): void {
+    if (this.positionHeartbeat) {
+      clearInterval(this.positionHeartbeat)
+      this.positionHeartbeat = null
+    }
+  }
+
   async destroy(): Promise<void> {
+    this.stopPositionHeartbeat()
+    if (this.emitTimer) {
+      clearTimeout(this.emitTimer)
+      this.emitTimer = null
+    }
+    this.removeAllListeners()
     await this.mpv.destroy()
   }
 }

@@ -30,6 +30,8 @@ export interface MpvIpcResponse {
   data?: unknown
   event?: string
   reason?: string
+  id?: number
+  name?: string
 }
 
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused'

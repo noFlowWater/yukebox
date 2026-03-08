@@ -11,6 +11,8 @@ import { SelectableCheckbox } from '@/components/SelectableCheckbox'
 import { BulkActionBar } from '@/components/BulkActionBar'
 import { useMultiSelect } from '@/hooks/useMultiSelect'
 import Image from 'next/image'
+import { ClickableThumbnail } from '@/components/ClickableThumbnail'
+import { ClickableTitle } from '@/components/ClickableTitle'
 import { formatDuration } from '@/lib/utils'
 import { useAccessibility } from '@/contexts/AccessibilityContext'
 import type { SearchResult } from '@/types'
@@ -144,34 +146,18 @@ export function SearchResults({
               />
 
               {/* Thumbnail — clickable */}
-              <div
-                role="button"
-                tabIndex={0}
-                className="shrink-0 self-center cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              <ClickableThumbnail
                 onClick={() => onOpenDetail(item)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail(item) } }}
-                aria-label={`View details: ${item.title}`}
+                ariaLabel={`View details: ${item.title}`}
               >
-                <Image
-                  src={item.thumbnail}
-                  alt={item.title}
-                  width={64}
-                  height={48}
-                  className="h-12 w-16 rounded object-cover bg-muted"
-                />
-              </div>
+                <Image src={item.thumbnail} alt={item.title} width={64} height={48} className="h-12 w-16 rounded object-cover bg-muted" />
+              </ClickableThumbnail>
 
               {/* Title + Duration + Actions */}
               <div className="flex-1 min-w-0">
-                <p
-                  role="button"
-                  tabIndex={0}
-                  className="text-sm font-medium line-clamp-2 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                  onClick={() => onOpenDetail(item)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail(item) } }}
-                >
+                <ClickableTitle onClick={() => onOpenDetail(item)}>
                   {item.title}
-                </p>
+                </ClickableTitle>
                 <div className="flex items-center gap-2 mt-0.5">
                   <p className="text-xs text-muted-foreground">
                     {formatDuration(item.duration)}

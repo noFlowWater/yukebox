@@ -98,8 +98,10 @@ export function useAdminBluetooth({ onSpeakersChanged }: UseAdminBluetoothParams
     } finally {
       // Always refresh device list and speakers — BT may have connected
       // even if the API returned an error (e.g. engine creation failed)
-      await fetchBluetoothDevices()
-      await onSpeakersChanged()
+      await Promise.all([
+        fetchBluetoothDevices().catch(() => {}),
+        onSpeakersChanged().catch(() => {}),
+      ])
       setConnectingAddress(null)
     }
   }

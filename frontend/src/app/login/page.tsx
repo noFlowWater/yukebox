@@ -29,7 +29,7 @@ export default function LoginPage() {
     try {
       const user = await api.login(username, password)
       setUser(user)
-      await refreshSpeakers()
+      refreshSpeakers()
       router.push('/')
     } catch (err) {
       setError(err instanceof api.ApiError ? err.message : 'Login failed')

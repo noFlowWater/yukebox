@@ -3,6 +3,9 @@
 import { GripVertical, Pause, Play, Square, X } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import { StatusPill } from '@/components/StatusPill'
+import { ClickableThumbnail } from '@/components/ClickableThumbnail'
+import { ClickableTitle } from '@/components/ClickableTitle'
 import { formatDuration } from '@/lib/utils'
 import type { QueueItem as QueueItemType } from '@/types'
 
@@ -69,47 +72,27 @@ export function QueueItem({
       )}
 
       {/* Thumbnail — clickable */}
-      <div
-        role="button"
-        tabIndex={0}
-        className="shrink-0 self-center cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      <ClickableThumbnail
         onClick={() => onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }, item.id)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }, item.id) } }}
-        aria-label={`View details: ${item.title}`}
+        ariaLabel={`View details: ${item.title}`}
       >
-        <Image
-          src={item.thumbnail}
-          alt={item.title}
-          width={56}
-          height={40}
-          className="h-10 w-14 rounded object-cover bg-muted"
-        />
-      </div>
+        <Image src={item.thumbnail} alt={item.title} width={56} height={40} className="h-10 w-14 rounded object-cover bg-muted" />
+      </ClickableThumbnail>
 
       {/* Title + Duration/Status + Actions */}
       <div className="flex-1 min-w-0">
-        <p
-          role="button"
-          tabIndex={0}
-          className="text-sm font-medium line-clamp-2 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-          onClick={() => onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }, item.id)}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }, item.id) } }}
-        >
+        <ClickableTitle onClick={() => onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }, item.id)}>
           {item.title}
-        </p>
+        </ClickableTitle>
         <div className="flex items-center gap-2 mt-0.5">
           <p className="text-xs text-muted-foreground">
             {formatDuration(item.duration)}
           </p>
           {isPlaying && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-success/20 text-success">
-              Now playing
-            </span>
+            <StatusPill variant="success">Now playing</StatusPill>
           )}
           {isPaused && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-warning/20 text-warning">
-              paused
-            </span>
+            <StatusPill variant="warning">paused</StatusPill>
           )}
           <div className="flex-1" />
 

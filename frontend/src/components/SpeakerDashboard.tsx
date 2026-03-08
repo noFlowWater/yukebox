@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { Play, Pause, Volume2, ListMusic, WifiOff } from 'lucide-react'
+import { StatusPill } from '@/components/StatusPill'
 import { useSpeaker } from '@/contexts/SpeakerContext'
 import * as api from '@/lib/api'
 import type { SpeakerStatus } from '@/types'
@@ -74,27 +75,25 @@ export function SpeakerDashboard({ expanded }: SpeakerDashboardProps) {
 
               {/* Status badge */}
               {isPlaying && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-success/20 text-success shrink-0">
+                <StatusPill variant="success" className="shrink-0">
                   <Play className="h-2.5 w-2.5 fill-current" />
                   Playing
-                </span>
+                </StatusPill>
               )}
               {isPaused && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-primary/20 text-primary shrink-0">
+                <StatusPill variant="primary" className="shrink-0">
                   <Pause className="h-2.5 w-2.5" />
                   Paused
-                </span>
+                </StatusPill>
               )}
               {isOffline && (
-                <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-muted text-muted-foreground shrink-0">
+                <StatusPill variant="muted" className="shrink-0">
                   <WifiOff className="h-2.5 w-2.5" />
                   Offline
-                </span>
+                </StatusPill>
               )}
               {!isPlaying && !isPaused && !isOffline && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-muted text-muted-foreground shrink-0">
-                  Idle
-                </span>
+                <StatusPill variant="muted" className="shrink-0">Idle</StatusPill>
               )}
 
               {/* Spacer */}

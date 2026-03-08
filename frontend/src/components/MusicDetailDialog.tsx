@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { Play, ListPlus, Clock, Heart, ExternalLink, RefreshCw, ChevronDown, ChevronUp, Pin, ThumbsUp, MessageSquare, Music, CheckSquare, Square, X } from 'lucide-react'
+import { ClickableThumbnail } from '@/components/ClickableThumbnail'
+import { ClickableTitle } from '@/components/ClickableTitle'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -172,32 +174,17 @@ function MusicTrackItem({
           )}
         </button>
       )}
-      <div
-        className="relative shrink-0 self-center w-14 h-10 bg-muted rounded overflow-hidden cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        role="button"
-        tabIndex={0}
+      <ClickableThumbnail
         onClick={onOpenDetail}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail() } }}
-        aria-label={`View details: ${track.title}`}
+        ariaLabel={`View details: ${track.title}`}
+        className="relative w-14 h-10 bg-muted rounded overflow-hidden"
       >
-        <Image
-          src={track.thumbnail}
-          alt={track.title}
-          fill
-          className="object-cover"
-          sizes="56px"
-        />
-      </div>
+        <Image src={track.thumbnail} alt={track.title} fill className="object-cover" sizes="56px" />
+      </ClickableThumbnail>
       <div className="flex-1 min-w-0">
-        <p
-          role="button"
-          tabIndex={0}
-          className="text-sm font-medium line-clamp-2 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-          onClick={onOpenDetail}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail() } }}
-        >
+        <ClickableTitle onClick={onOpenDetail}>
           {track.title}
-        </p>
+        </ClickableTitle>
         <div className="flex items-center gap-2 mt-0.5">
           {track.duration > 0 && (
             <p className="text-xs text-muted-foreground">

@@ -6,12 +6,13 @@ import { EMPTY_STATUS } from '../../types/mpv.js'
 import { setupAuth, wrapWithAuth, getAuthCookie } from '../helpers/auth.js'
 
 // Use vi.hoisted to make mockEngine available in hoisted vi.mock
-const { mockEngine } = vi.hoisted(() => ({
-  mockEngine: {
-    getStatus: vi.fn(),
-    getStatusAsync: vi.fn(),
-  },
-}))
+const { mockEngine } = vi.hoisted(() => {
+  const { EventEmitter } = require('node:events')
+  const engine = new EventEmitter()
+  engine.getStatus = vi.fn()
+  engine.getStatusAsync = vi.fn()
+  return { mockEngine: engine }
+})
 
 vi.mock('../../services/playback-manager.js', () => ({
   playbackManager: {
@@ -187,5 +188,94 @@ describe('GET /api/status/stream', () => {
       controller.abort()
       await app.close()
     }
+  })
+
+  it('should forward status-change events to SSE client', async () => {
+    const initialStatus = {
+      playing: false,
+      paused: false,
+      title: '',
+      url: '',
+      duration: 0,
+      position: 0,
+      volume: 60,
+      speaker_id: null,
+      speaker_name: null,
+      has_next: false,
+    }
+    const updatedStatus = {
+      playing: true,
+      paused: false,
+      title: 'New Song',
+      url: 'https://youtube.com/watch?v=new',
+      duration: 200,
+      position: 0,
+      volume: 80,
+      speaker_id: null,
+      speaker_name: null,
+      has_next: false,
+    }
+    mockEngine.getStatus.mockReturnValue(initialStatus)
+
+    const app = buildTestApp()
+    const address = await app.listen({ port: 0 })
+    const authCookie = await getAuthCookie()
+    const controller = new AbortController()
+
+    try {
+      const response = await fetch(`${address}/api/status/stream`, {
+        signal: controller.signal,
+        headers: { cookie: authCookie },
+      })
+
+      const reader = response.body!.getReader()
+      const decoder = new TextDecoder()
+
+      // Read initial status
+      await reader.read()
+
+      // Emit status-change event from engine
+      mockEngine.emit('status-change', updatedStatus)
+
+      // Read the pushed event
+      const { value } = await reader.read()
+      const text = decoder.decode(value)
+      expect(text).toContain('New Song')
+    } finally {
+      controller.abort()
+      await app.close()
+    }
+  })
+
+  it('should remove listener on client disconnect', async () => {
+    mockEngine.getStatus.mockReturnValue({ ...EMPTY_STATUS })
+
+    const app = buildTestApp()
+    const address = await app.listen({ port: 0 })
+    const authCookie = await getAuthCookie()
+    const controller = new AbortController()
+
+    const listenersBefore = mockEngine.listenerCount('status-change')
+
+    const response = await fetch(`${address}/api/status/stream`, {
+      signal: controller.signal,
+      headers: { cookie: authCookie },
+    })
+
+    // Read initial data to confirm connection
+    const reader = response.body!.getReader()
+    await reader.read()
+
+    expect(mockEngine.listenerCount('status-change')).toBe(listenersBefore + 1)
+
+    // Disconnect
+    controller.abort()
+
+    // Wait briefly for cleanup
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(mockEngine.listenerCount('status-change')).toBe(listenersBefore)
+
+    await app.close()
   })
 })

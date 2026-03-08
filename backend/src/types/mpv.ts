@@ -24,12 +24,24 @@ export const EMPTY_STATUS: MpvStatus = {
   has_next: false,
 }
 
+export interface PlaybackInfo {
+  playing: boolean
+  paused: boolean
+  title: string
+  url: string
+  duration: number
+  position: number
+  volume: number
+}
+
 export interface MpvIpcResponse {
   request_id?: number
   error?: string
   data?: unknown
   event?: string
   reason?: string
+  id?: number
+  name?: string
 }
 
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused'

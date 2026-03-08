@@ -135,6 +135,10 @@ export class QueueManager {
     return this.items.find((i) => i.status === 'pending') ?? null
   }
 
+  hasNextPlayable(): boolean {
+    return this.items.some((i) => i.status === 'pending' || i.status === 'paused')
+  }
+
   findNextPlayable(): QueueItem | null {
     // First check for paused items (resume interrupted playback)
     const paused = this.findPaused()

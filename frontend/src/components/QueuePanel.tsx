@@ -16,17 +16,18 @@ const MODE_CONFIG: Record<PlaybackMode, { icon: typeof ArrowRight; label: string
 }
 
 interface QueuePanelProps {
+  active?: boolean
   onOpenDetail: (item: { url: string; title: string; thumbnail: string; duration: number }, queueId: number) => void
 }
 
-export function QueuePanel({ onOpenDetail }: QueuePanelProps) {
+export function QueuePanel({ active = true, onOpenDetail }: QueuePanelProps) {
   const {
     queue, isLoading, dragIndex, overIndex, playbackMode,
     playbackPaused, hasPending,
     handlePlay, handlePause, handleStop, handleModeChange, handleClearAll,
     handleDragStart, handleDragOver, handleDragLeave, handleDrop, handleDragEnd,
     handleRemove,
-  } = useQueuePanel()
+  } = useQueuePanel(active)
 
   if (isLoading) return <ListSkeleton />
 

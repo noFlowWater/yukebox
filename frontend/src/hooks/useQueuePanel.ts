@@ -10,7 +10,7 @@ const POLL_INTERVAL = 3000
 
 const MODES: PlaybackMode[] = ['sequential', 'repeat-all', 'repeat-one', 'shuffle']
 
-export function useQueuePanel() {
+export function useQueuePanel(active = true) {
   const { activeSpeakerId } = useSpeaker()
   const { status: playbackStatus } = useStatus()
   const [queue, setQueue] = useState<QueueItemType[]>([])
@@ -36,6 +36,7 @@ export function useQueuePanel() {
 
   // Initial fetch + polling + listen for external updates
   useEffect(() => {
+    if (!active) return
     fetchQueue()
     const id = setInterval(fetchQueue, POLL_INTERVAL)
     const onUpdate = () => fetchQueue()
@@ -44,7 +45,7 @@ export function useQueuePanel() {
       clearInterval(id)
       window.removeEventListener('queue-updated', onUpdate)
     }
-  }, [fetchQueue])
+  }, [fetchQueue, active])
 
   // --- Play from queue ---
   const handlePlay = useCallback(async (id: number) => {

@@ -117,13 +117,13 @@ export default function Home() {
 
       {/* ── Bottom Sheet with Queue/Schedule/Favorites ── */}
       <BottomSheet activeTab={activeTab} onTabChange={setActiveTab}>
-        {activeTab === 'queue' && (
-          <QueuePanel onOpenDetail={(item, queueId) => handleOpenDetail(item, queueId)} />
-        )}
-        {activeTab === 'schedule' && (
-          <SchedulePanel onOpenDetail={handleOpenDetail} />
-        )}
-        {activeTab === 'favorites' && (
+        <div className={activeTab !== 'queue' ? 'hidden' : undefined}>
+          <QueuePanel active={activeTab === 'queue'} onOpenDetail={(item, queueId) => handleOpenDetail(item, queueId)} />
+        </div>
+        <div className={activeTab !== 'schedule' ? 'hidden' : undefined}>
+          <SchedulePanel active={activeTab === 'schedule'} onOpenDetail={handleOpenDetail} />
+        </div>
+        <div className={activeTab !== 'favorites' ? 'hidden' : undefined}>
           <FavoritesPanel
             onPlay={handlePlay}
             onAddToQueue={handleAddToQueue}
@@ -131,7 +131,7 @@ export default function Home() {
             onSchedule={handleSchedule}
             onOpenDetail={handleOpenDetail}
           />
-        )}
+        </div>
       </BottomSheet>
 
       {/* ── Search overlay ── */}

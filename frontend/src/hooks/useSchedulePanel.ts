@@ -9,7 +9,7 @@ import type { Schedule } from '@/types'
 
 const POLL_INTERVAL = 3000
 
-export function useSchedulePanel() {
+export function useSchedulePanel(active = true) {
   const { activeSpeakerId } = useSpeaker()
   const { status: playbackStatus } = useStatus()
   const { timezone } = useAccessibility()
@@ -31,6 +31,7 @@ export function useSchedulePanel() {
 
   // Initial fetch + polling + listen for external updates
   useEffect(() => {
+    if (!active) return
     fetchSchedules()
     const id = setInterval(fetchSchedules, POLL_INTERVAL)
     const onUpdate = () => fetchSchedules()
@@ -39,7 +40,7 @@ export function useSchedulePanel() {
       clearInterval(id)
       window.removeEventListener('schedule-updated', onUpdate)
     }
-  }, [fetchSchedules])
+  }, [fetchSchedules, active])
 
   // Refresh relative times every 30s
   useEffect(() => {

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Speaker as SpeakerIcon, Play, Pause, ListMusic, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { StatusPill } from '@/components/StatusPill'
 import {
   Select,
   SelectContent,
@@ -97,33 +98,31 @@ export function SpeakerBar() {
 
         <div className="flex items-center gap-1.5 ml-auto shrink-0">
           {isPlaying && (
-            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-success/20 text-success">
+            <StatusPill variant="success">
               <Play className="h-3 w-3 fill-current" />
               <span className="hidden sm:inline">Playing</span>
-            </span>
+            </StatusPill>
           )}
           {isPaused && (
-            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-primary/20 text-primary">
+            <StatusPill variant="primary">
               <Pause className="h-3 w-3" />
               <span className="hidden sm:inline">Paused</span>
-            </span>
+            </StatusPill>
           )}
           {queueCount > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">
+            <StatusPill variant="muted">
               <ListMusic className="h-3 w-3" />
               {queueCount} up next
-            </span>
+            </StatusPill>
           )}
           {scheduleCount > 0 && (
-            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">
+            <StatusPill variant="muted">
               <Clock className="h-3 w-3" />
               {scheduleCount} scheduled
-            </span>
+            </StatusPill>
           )}
           {isIdle && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">
-              Idle
-            </span>
+            <StatusPill variant="muted">Idle</StatusPill>
           )}
 
           {showDashboardToggle && (

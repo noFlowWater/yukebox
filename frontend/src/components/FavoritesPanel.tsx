@@ -12,6 +12,8 @@ import { SelectableCheckbox } from '@/components/SelectableCheckbox'
 import { BulkActionBar } from '@/components/BulkActionBar'
 import { useMultiSelect } from '@/hooks/useMultiSelect'
 import Image from 'next/image'
+import { ClickableThumbnail } from '@/components/ClickableThumbnail'
+import { ClickableTitle } from '@/components/ClickableTitle'
 import { formatDuration, handleApiError } from '@/lib/utils'
 import { useAccessibility } from '@/contexts/AccessibilityContext'
 import * as api from '@/lib/api'
@@ -163,34 +165,18 @@ export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSched
                 />
 
                 {/* Thumbnail — clickable */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="shrink-0 self-center cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                <ClickableThumbnail
                   onClick={() => onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration })}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }) } }}
-                  aria-label={`View details: ${item.title}`}
+                  ariaLabel={`View details: ${item.title}`}
                 >
-                  <Image
-                    src={item.thumbnail}
-                    alt={item.title}
-                    width={56}
-                    height={40}
-                    className="h-10 w-14 rounded object-cover bg-muted"
-                  />
-                </div>
+                  <Image src={item.thumbnail} alt={item.title} width={56} height={40} className="h-10 w-14 rounded object-cover bg-muted" />
+                </ClickableThumbnail>
 
                 {/* Title + Duration + Actions */}
                 <div className="flex-1 min-w-0">
-                  <p
-                    role="button"
-                    tabIndex={0}
-                    className="text-sm font-medium line-clamp-2 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                    onClick={() => onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration })}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }) } }}
-                  >
+                  <ClickableTitle onClick={() => onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration })}>
                     {item.title}
-                  </p>
+                  </ClickableTitle>
                   <div className="flex items-center gap-2 mt-0.5">
                     <p className="text-xs text-muted-foreground">
                       {formatDuration(item.duration)}

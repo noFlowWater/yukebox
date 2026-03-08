@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import { Clock, Trash2, MoreVertical, Pencil, X, Music } from 'lucide-react'
+import { StatusPill } from '@/components/StatusPill'
+import { ClickableThumbnail } from '@/components/ClickableThumbnail'
+import { ClickableTitle } from '@/components/ClickableTitle'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -22,12 +25,12 @@ import type { Schedule } from '@/types'
 
 const POLL_INTERVAL = 3000
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  pending: { label: 'pending', className: 'bg-primary/20 text-primary' },
-  playing: { label: 'playing', className: 'bg-success/20 text-success' },
-  paused: { label: 'paused', className: 'bg-warning/20 text-warning' },
-  completed: { label: 'completed', className: 'bg-muted text-muted-foreground' },
-  failed: { label: 'failed', className: 'bg-destructive/20 text-destructive' },
+const STATUS_CONFIG: Record<string, { label: string; variant: 'primary' | 'success' | 'warning' | 'muted' | 'destructive' }> = {
+  pending: { label: 'pending', variant: 'primary' },
+  playing: { label: 'playing', variant: 'success' },
+  paused: { label: 'paused', variant: 'warning' },
+  completed: { label: 'completed', variant: 'muted' },
+  failed: { label: 'failed', variant: 'destructive' },
 }
 
 interface SchedulePanelProps {
@@ -174,22 +177,12 @@ export function SchedulePanel({ onOpenDetail }: SchedulePanelProps) {
                   {/* Thumbnail */}
                   {schedule.thumbnail ? (
                     schedule.url ? (
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        className="shrink-0 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      <ClickableThumbnail
                         onClick={() => onOpenDetail({ url: schedule.url, title: schedule.title, thumbnail: schedule.thumbnail, duration: schedule.duration })}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail({ url: schedule.url, title: schedule.title, thumbnail: schedule.thumbnail, duration: schedule.duration }) } }}
-                        aria-label={`View details: ${schedule.title}`}
+                        ariaLabel={`View details: ${schedule.title}`}
                       >
-                        <Image
-                          src={schedule.thumbnail}
-                          alt={schedule.title || ''}
-                          width={56}
-                          height={40}
-                          className="h-10 w-14 rounded object-cover bg-muted"
-                        />
-                      </div>
+                        <Image src={schedule.thumbnail} alt={schedule.title || ''} width={56} height={40} className="h-10 w-14 rounded object-cover bg-muted" />
+                      </ClickableThumbnail>
                     ) : (
                       <Image
                         src={schedule.thumbnail}
@@ -208,15 +201,9 @@ export function SchedulePanel({ onOpenDetail }: SchedulePanelProps) {
                   {/* Title + duration */}
                   <div className="flex-1 min-w-0">
                     {schedule.url ? (
-                      <p
-                        role="button"
-                        tabIndex={0}
-                        className="text-sm font-medium line-clamp-2 cursor-pointer hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
-                        onClick={() => onOpenDetail({ url: schedule.url, title: schedule.title, thumbnail: schedule.thumbnail, duration: schedule.duration })}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenDetail({ url: schedule.url, title: schedule.title, thumbnail: schedule.thumbnail, duration: schedule.duration }) } }}
-                      >
+                      <ClickableTitle onClick={() => onOpenDetail({ url: schedule.url, title: schedule.title, thumbnail: schedule.thumbnail, duration: schedule.duration })}>
                         {schedule.title || schedule.query || schedule.url}
-                      </p>
+                      </ClickableTitle>
                     ) : (
                       <p className="text-sm font-medium line-clamp-2">
                         {schedule.title || schedule.query || schedule.url}
@@ -243,9 +230,7 @@ export function SchedulePanel({ onOpenDetail }: SchedulePanelProps) {
                   <span className="text-xs text-muted-foreground">
                     {formatDatetime(schedule.scheduled_at, timezone)}
                   </span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${config.className}`}>
-                    {config.label}
-                  </span>
+                  <StatusPill variant={config.variant}>{config.label}</StatusPill>
                   <div className="flex-1" />
                   {isPending ? (
                     editingScheduleId === schedule.id ? (

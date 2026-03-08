@@ -151,7 +151,7 @@ export async function getVideoComments(url: string): Promise<VideoComments> {
       '--no-write-info-json',
       '--write-comments',
       '--js-runtimes', 'node',
-      '--extractor-args', 'youtube:comment_sort=top;max_comments=5',
+      '--extractor-args', 'youtube:comment_sort=top;max_comments=50,15,0,0',
       url,
     ], { timeout: 20000 })
 
@@ -164,10 +164,10 @@ export async function getVideoComments(url: string): Promise<VideoComments> {
       return empty
     }
 
-    const pinned = raw.comments.find((c: { is_pinned?: boolean }) => c.is_pinned === true)
-    const top = raw.comments
+    const rootComments = raw.comments.filter((c: { parent?: string }) => c.parent === 'root')
+    const pinned = rootComments.find((c: { is_pinned?: boolean }) => c.is_pinned === true)
+    const top = rootComments
       .filter((c: { is_pinned?: boolean }) => c.is_pinned !== true)
-      .slice(0, 2)
       .map(toVideoComment)
 
     const result: VideoComments = {

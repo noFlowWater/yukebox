@@ -27,7 +27,7 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
-  const { theme, textScale, reduceMotion, highContrast, textWrap, timezone, searchResultCount, updateSettings } = useAccessibility()
+  const { theme, textScale, reduceMotion, highContrast, textWrap, timezone, searchResultCount, commentCount, updateSettings } = useAccessibility()
 
   const timezoneGroups = useMemo(() => {
     const allTimezones = Intl.supportedValuesOf('timeZone')
@@ -100,6 +100,21 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <SelectContent>
                 {[3, 5, 10, 15, 20].map((n) => (
                   <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Comments count */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium">Comments to show</label>
+            <Select value={String(commentCount)} onValueChange={(v) => updateSettings({ commentCount: Number(v) })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[0, 1, 2, 3, 5, 10].map((n) => (
+                  <SelectItem key={n} value={String(n)}>{n === 0 ? 'None' : String(n)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

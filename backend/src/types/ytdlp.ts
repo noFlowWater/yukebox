@@ -33,3 +33,18 @@ export interface VideoComments {
   pinned: VideoComment | null
   top: VideoComment[]
 }
+
+export interface VideoMusicTrack {
+  url: string
+  title: string
+  thumbnail: string
+  duration: number
+  artist: string
+  album: string
+  albumThumbnail: string
+}
+
+export interface VideoMusic {
+  count: number
+  tracks: VideoMusicTrack[]
+}

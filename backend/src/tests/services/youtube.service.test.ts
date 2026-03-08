@@ -164,9 +164,9 @@ describe('getVideoComments', () => {
     const dumpJson = JSON.stringify({
       title: 'Test Video',
       comments: [
-        { author: 'Creator', text: 'Timestamps:\n0:00 Intro\n1:00 Main', like_count: 500, is_pinned: true },
-        { author: 'User1', text: 'Great video!', like_count: 10, is_pinned: false },
-        { author: 'User2', text: 'Amazing!', like_count: 5, is_pinned: false },
+        { author: 'Creator', text: 'Timestamps:\n0:00 Intro\n1:00 Main', like_count: 500, is_pinned: true, parent: 'root' },
+        { author: 'User1', text: 'Great video!', like_count: 10, is_pinned: false, parent: 'root' },
+        { author: 'User2', text: 'Amazing!', like_count: 5, is_pinned: false, parent: 'root' },
       ],
     })
 
@@ -199,7 +199,7 @@ describe('getVideoComments', () => {
     const dumpJson = JSON.stringify({
       title: 'Test Video',
       comments: [
-        { author: 'User1', text: 'Nice!', like_count: 5, is_pinned: false },
+        { author: 'User1', text: 'Nice!', like_count: 5, is_pinned: false, parent: 'root' },
       ],
     })
 
@@ -217,6 +217,39 @@ describe('getVideoComments', () => {
     const result = await getVideoComments('https://youtube.com/watch?v=nopin111111')
 
     expect(result.pinned).toBeNull()
+    expect(result.top).toHaveLength(1)
+    expect(result.top[0].author).toBe('User1')
+  })
+
+  it('should exclude reply comments and only return root-level comments', async () => {
+    const { execFile } = await import('node:child_process')
+    const mockExecFile = vi.mocked(execFile)
+
+    const dumpJson = JSON.stringify({
+      title: 'Test Video',
+      comments: [
+        { author: 'Creator', text: 'Pinned!', like_count: 100, is_pinned: true, parent: 'root' },
+        { author: 'Reply1', text: 'Reply to pinned', like_count: 5, is_pinned: false, parent: 'Ugzge340dBgB75hWBm54AaABAg' },
+        { author: 'User1', text: 'Top comment', like_count: 50, is_pinned: false, parent: 'root' },
+        { author: 'Reply2', text: 'Reply to user1', like_count: 2, is_pinned: false, parent: 'UgxABC123' },
+      ],
+    })
+
+    mockExecFile.mockImplementation((...args: unknown[]) => {
+      const callback = args[args.length - 1] as (err: Error | null, result: { stdout: string; stderr: string }) => void
+      if (typeof callback === 'function') {
+        callback(null, { stdout: dumpJson, stderr: '' })
+      }
+      return undefined as never
+    })
+
+    await setupPromisify()
+
+    const { getVideoComments } = await import('../../services/ytdlp.service.js')
+    const result = await getVideoComments('https://youtube.com/watch?v=reply111111')
+
+    expect(result.pinned).not.toBeNull()
+    expect(result.pinned!.author).toBe('Creator')
     expect(result.top).toHaveLength(1)
     expect(result.top[0].author).toBe('User1')
   })

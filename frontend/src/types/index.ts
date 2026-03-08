@@ -176,6 +176,22 @@ export interface VideoComments {
   top: VideoComment[]
 }
 
+// Video Music
+export interface VideoMusicTrack {
+  url: string
+  title: string
+  thumbnail: string
+  duration: number
+  artist: string
+  album: string
+  albumThumbnail: string
+}
+
+export interface VideoMusic {
+  count: number
+  tracks: VideoMusicTrack[]
+}
+
 // Favorite
 export interface Favorite {
   id: number

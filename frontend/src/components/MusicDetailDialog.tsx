@@ -724,17 +724,18 @@ export function MusicDetailDialog({
         <DialogTitle className="sr-only">{item?.title || 'Music Details'}</DialogTitle>
 
         {isLoading ? (
-          <div className="p-4 flex flex-col gap-3">
-            <Skeleton className="w-full aspect-video rounded" />
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-4 w-1/3" />
-            <div className="flex gap-2 mt-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-9 w-9 rounded" />
-              ))}
+          <>
+            <Skeleton className="w-full aspect-video" />
+            <div className="p-4 flex flex-col gap-3">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-2/3" />
+              <div className="flex items-center gap-1.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-9 w-9 rounded" />
+                ))}
+              </div>
             </div>
-          </div>
+          </>
         ) : error ? (
           <div className="p-6 flex flex-col items-center gap-3 text-center">
             <p className="text-sm text-muted-foreground">Failed to load details</p>
@@ -891,9 +892,14 @@ export function MusicDetailDialog({
 
               {/* Comments */}
               {commentsLoading && (
-                <div className="pt-2 border-t border-border flex flex-col gap-1.5">
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-3 w-2/3" />
+                <div className="pt-2 border-t border-border flex flex-col gap-3">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div key={i} className="flex flex-col gap-1">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-4/5" />
+                    </div>
+                  ))}
                 </div>
               )}
               {hasComments && (

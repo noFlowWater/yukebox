@@ -2,8 +2,9 @@
 
 import { ListMusic, Shuffle, Trash2, ArrowRight, Repeat, Repeat1 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { QueueItem } from '@/components/QueueItem'
+import { EmptyState } from '@/components/EmptyState'
+import { ListSkeleton } from '@/components/ListSkeleton'
 import { useQueuePanel } from '@/hooks/useQueuePanel'
 import type { PlaybackMode } from '@/types'
 
@@ -27,29 +28,10 @@ export function QueuePanel({ onOpenDetail }: QueuePanelProps) {
     handleRemove,
   } = useQueuePanel()
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col gap-3 py-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <Skeleton className="h-10 w-14 rounded shrink-0" />
-            <div className="flex-1 space-y-1.5">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-12" />
-            </div>
-          </div>
-        ))}
-      </div>
-    )
-  }
+  if (isLoading) return <ListSkeleton />
 
   if (queue.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-        <ListMusic className="h-8 w-8 mb-2" />
-        <p className="text-sm">Nothing up next</p>
-      </div>
-    )
+    return <EmptyState icon={<ListMusic className="h-8 w-8 mb-2" />} title="Nothing up next" />
   }
 
   return (

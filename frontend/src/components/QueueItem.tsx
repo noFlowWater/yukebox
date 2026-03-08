@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { StatusPill } from '@/components/StatusPill'
 import { ClickableThumbnail } from '@/components/ClickableThumbnail'
 import { ClickableTitle } from '@/components/ClickableTitle'
-import { formatDuration } from '@/lib/utils'
+import { formatDuration, toMediaItem } from '@/lib/utils'
 import type { QueueItem as QueueItemType } from '@/types'
 
 interface QueueItemProps {
@@ -73,7 +73,7 @@ export function QueueItem({
 
       {/* Thumbnail — clickable */}
       <ClickableThumbnail
-        onClick={() => onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }, item.id)}
+        onClick={() => onOpenDetail(toMediaItem(item), item.id)}
         ariaLabel={`View details: ${item.title}`}
       >
         <Image src={item.thumbnail} alt={item.title} width={56} height={40} className="h-10 w-14 rounded object-cover bg-muted" />
@@ -81,7 +81,7 @@ export function QueueItem({
 
       {/* Title + Duration/Status + Actions */}
       <div className="flex-1 min-w-0">
-        <ClickableTitle onClick={() => onOpenDetail({ url: item.url, title: item.title, thumbnail: item.thumbnail, duration: item.duration }, item.id)}>
+        <ClickableTitle onClick={() => onOpenDetail(toMediaItem(item), item.id)}>
           {item.title}
         </ClickableTitle>
         <div className="flex items-center gap-2 mt-0.5">

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { handleApiError } from '@/lib/utils'
-import { getRelativeTime } from '@/lib/utils'
+import { handleApiError, getRelativeTime } from '@/lib/utils'
+import { emitScheduleUpdated } from '@/lib/events'
 import * as api from '@/lib/api'
 import { useSpeaker } from '@/contexts/SpeakerContext'
 import { useStatus } from '@/contexts/StatusContext'
@@ -79,7 +79,7 @@ export function useSchedulePanel() {
         }).filter((s) => updatedIds.has(s.id) || !updated.some((u) => u.id === s.id))
       })
       setEditingScheduleId(null)
-      window.dispatchEvent(new Event('schedule-updated'))
+      emitScheduleUpdated()
     } catch (err) {
       handleApiError(err, 'Failed to update schedule time')
       fetchSchedules()

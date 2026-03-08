@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { handleApiError } from '@/lib/utils'
+import { handleApiError, toMediaItem } from '@/lib/utils'
+import { emitQueueUpdated, emitScheduleUpdated } from '@/lib/events'
 import { toggleFavorite } from '@/hooks/useFavoriteToggle'
 import { useAuth } from '@/hooks/useAuth'
 import { useSpeaker } from '@/contexts/SpeakerContext'
@@ -69,10 +70,7 @@ export function useHomeActions() {
   const handlePlay = useCallback(async (item: SearchResult) => {
     try {
       const result = await api.play({
-        url: item.url,
-        title: item.title,
-        thumbnail: item.thumbnail,
-        duration: item.duration,
+        ...toMediaItem(item),
         speaker_id: activeSpeakerId ?? undefined,
       })
       toast.success(`Playing: ${result.title}`)
@@ -80,7 +78,7 @@ export function useHomeActions() {
       setHasSearched(false)
       setSearchMode(false)
       setSearchValue('')
-      window.dispatchEvent(new Event('queue-updated'))
+      emitQueueUpdated()
     } catch (err) {
       handleApiError(err, 'Play failed')
     }
@@ -89,14 +87,11 @@ export function useHomeActions() {
   const handleAddToQueue = useCallback(async (item: SearchResult) => {
     try {
       const result = await api.addToQueue({
-        url: item.url,
-        title: item.title,
-        thumbnail: item.thumbnail,
-        duration: item.duration,
+        ...toMediaItem(item),
         speaker_id: activeSpeakerId ?? undefined,
       })
       toast.success(`Added to Up Next: ${result.title}`)
-      window.dispatchEvent(new Event('queue-updated'))
+      emitQueueUpdated()
     } catch (err) {
       handleApiError(err, 'Failed to add')
     }
@@ -105,11 +100,11 @@ export function useHomeActions() {
   const handleBulkAddToQueue = useCallback(async (items: SearchResult[]) => {
     try {
       const result = await api.bulkAddToQueue(
-        items.map((i) => ({ url: i.url, title: i.title, thumbnail: i.thumbnail, duration: i.duration })),
+        items.map(toMediaItem),
         activeSpeakerId ?? undefined,
       )
       toast.success(`Added ${result.length} song${result.length !== 1 ? 's' : ''} to Up Next`)
-      window.dispatchEvent(new Event('queue-updated'))
+      emitQueueUpdated()
     } catch (err) {
       handleApiError(err, 'Failed to add')
     }
@@ -123,10 +118,7 @@ export function useHomeActions() {
       const time = new Date(new Date(scheduledAt).getTime() + offset * 1000)
       try {
         await api.createSchedule({
-          url: item.url,
-          title: item.title,
-          thumbnail: item.thumbnail,
-          duration: item.duration,
+          ...toMediaItem(item),
           scheduled_at: time.toISOString(),
           group_id: groupId,
           speaker_id: activeSpeakerId ?? undefined,
@@ -139,7 +131,7 @@ export function useHomeActions() {
     }
     if (successCount > 0) {
       toast.success(`Scheduled ${successCount} song${successCount !== 1 ? 's' : ''}`)
-      window.dispatchEvent(new Event('schedule-updated'))
+      emitScheduleUpdated()
     }
   }, [activeSpeakerId])
 
@@ -192,7 +184,7 @@ export function useHomeActions() {
     try {
       const item = await api.playFromQueue(id)
       toast.success(`Playing: ${item.title}`)
-      window.dispatchEvent(new Event('queue-updated'))
+      emitQueueUpdated()
     } catch (err) {
       handleApiError(err, 'Play failed')
     }

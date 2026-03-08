@@ -15,7 +15,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { ScheduleTimePicker } from '@/components/ScheduleTimePicker'
-import { formatDatetime, formatDuration } from '@/lib/utils'
+import { EmptyState } from '@/components/EmptyState'
+import { formatDatetime, formatDuration, toMediaItem } from '@/lib/utils'
 import { useSchedulePanel } from '@/hooks/useSchedulePanel'
 
 const STATUS_CONFIG: Record<string, { label: string; variant: 'primary' | 'success' | 'warning' | 'muted' | 'destructive' }> = {
@@ -49,11 +50,11 @@ export function SchedulePanel({ onOpenDetail }: SchedulePanelProps) {
 
   if (schedules.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-        <Clock className="h-8 w-8 mb-2" />
-        <p className="text-sm">No scheduled playback</p>
-        <p className="text-xs mt-1">Use the search to schedule songs</p>
-      </div>
+      <EmptyState
+        icon={<Clock className="h-8 w-8 mb-2" />}
+        title="No scheduled playback"
+        subtitle="Use the search to schedule songs"
+      />
     )
   }
 
@@ -91,7 +92,7 @@ export function SchedulePanel({ onOpenDetail }: SchedulePanelProps) {
                   {schedule.thumbnail ? (
                     schedule.url ? (
                       <ClickableThumbnail
-                        onClick={() => onOpenDetail({ url: schedule.url, title: schedule.title, thumbnail: schedule.thumbnail, duration: schedule.duration })}
+                        onClick={() => onOpenDetail(toMediaItem(schedule))}
                         ariaLabel={`View details: ${schedule.title}`}
                       >
                         <Image src={schedule.thumbnail} alt={schedule.title || ''} width={56} height={40} className="h-10 w-14 rounded object-cover bg-muted" />
@@ -114,7 +115,7 @@ export function SchedulePanel({ onOpenDetail }: SchedulePanelProps) {
                   {/* Title + duration */}
                   <div className="flex-1 min-w-0">
                     {schedule.url ? (
-                      <ClickableTitle onClick={() => onOpenDetail({ url: schedule.url, title: schedule.title, thumbnail: schedule.thumbnail, duration: schedule.duration })}>
+                      <ClickableTitle onClick={() => onOpenDetail(toMediaItem(schedule))}>
                         {schedule.title || schedule.query || schedule.url}
                       </ClickableTitle>
                     ) : (

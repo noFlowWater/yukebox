@@ -1,5 +1,6 @@
 import * as api from '@/lib/api'
 import { handleApiError } from '@/lib/utils'
+import { emitFavoritesUpdated } from '@/lib/events'
 import type { SearchResult } from '@/types'
 
 interface FavoriteToggleParams {
@@ -28,7 +29,7 @@ export async function toggleFavorite({
     try {
       await api.removeFavorite(currentFavoriteId)
       onSuccess(url, null)
-      window.dispatchEvent(new Event('favorites-updated'))
+      emitFavoritesUpdated()
     } catch (err) {
       onRollback(currentFavoriteId)
       handleApiError(err, 'Failed to remove favorite')
@@ -39,7 +40,7 @@ export async function toggleFavorite({
       const fav = await api.addFavorite({ url, title, thumbnail, duration })
       onOptimistic(fav.id)
       onSuccess(url, fav.id)
-      window.dispatchEvent(new Event('favorites-updated'))
+      emitFavoritesUpdated()
     } catch (err) {
       onRollback(null)
       handleApiError(err, 'Failed to add favorite')

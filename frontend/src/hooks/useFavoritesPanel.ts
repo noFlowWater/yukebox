@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { handleApiError } from '@/lib/utils'
+import { handleApiError, toMediaItem } from '@/lib/utils'
+import { emitFavoritesUpdated } from '@/lib/events'
 import { useAccessibility } from '@/contexts/AccessibilityContext'
 import { useMultiSelect } from '@/hooks/useMultiSelect'
 import * as api from '@/lib/api'
@@ -23,16 +24,13 @@ export function useFavoritesPanel({ onBulkAddToQueue, onSchedule }: UseFavorites
   } = useMultiSelect(favorites)
 
   const handleBulkQueue = useCallback(() => {
-    onBulkAddToQueue(selectedItems.map((f) => ({ url: f.url, title: f.title, thumbnail: f.thumbnail, duration: f.duration })))
+    onBulkAddToQueue(selectedItems.map(toMediaItem))
     clearSelection()
   }, [selectedItems, onBulkAddToQueue, clearSelection])
 
   const handleBulkSchedule = useCallback(
     (scheduledAt: string) => {
-      onSchedule(
-        selectedItems.map((f) => ({ url: f.url, title: f.title, thumbnail: f.thumbnail, duration: f.duration })),
-        scheduledAt
-      )
+      onSchedule(selectedItems.map(toMediaItem), scheduledAt)
       clearSelection()
       setBulkScheduleOpen(false)
     },
@@ -64,7 +62,7 @@ export function useFavoritesPanel({ onBulkAddToQueue, onSchedule }: UseFavorites
     clearSelection()
     try {
       await api.removeFavorite(id)
-      window.dispatchEvent(new Event('favorites-updated'))
+      emitFavoritesUpdated()
     } catch (err) {
       handleApiError(err, 'Failed to remove favorite')
       fetchFavorites()
@@ -72,12 +70,7 @@ export function useFavoritesPanel({ onBulkAddToQueue, onSchedule }: UseFavorites
   }, [fetchFavorites, clearSelection])
 
   const handleSchedule = useCallback((item: Favorite, scheduledAt: string) => {
-    onSchedule([{
-      url: item.url,
-      title: item.title,
-      thumbnail: item.thumbnail,
-      duration: item.duration,
-    }], scheduledAt)
+    onSchedule([toMediaItem(item)], scheduledAt)
     setScheduleOpenId(null)
   }, [onSchedule])
 

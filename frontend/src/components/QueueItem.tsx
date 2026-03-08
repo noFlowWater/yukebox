@@ -1,6 +1,6 @@
 'use client'
 
-import { GripVertical, Pause, Play, Square, X } from 'lucide-react'
+import { Check, GripVertical, Pause, Play, Square, X } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { StatusPill } from '@/components/StatusPill'
@@ -36,6 +36,7 @@ export function QueueItem({
   const isActive = item.status === 'playing'
   const isPlaying = isActive && !playbackPaused
   const isPaused = item.status === 'paused' || (isActive && playbackPaused)
+  const isPlayed = item.status === 'played'
   const canDrag = !isPlaying && !isPaused
 
   return (
@@ -67,6 +68,8 @@ export function QueueItem({
         </span>
       ) : isPaused ? (
         <Pause className="h-4 w-4 text-warning shrink-0 self-center" />
+      ) : isPlayed ? (
+        <Check className="h-4 w-4 text-muted-foreground shrink-0 self-center" />
       ) : (
         <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 self-center" />
       )}
@@ -144,7 +147,7 @@ export function QueueItem({
             </div>
           )}
 
-          {/* Actions — pending item: play + remove */}
+          {/* Actions — pending/played item: play + remove */}
           {!isPlaying && !isPaused && (
             <div className="flex items-center gap-0.5 shrink-0">
               <Button

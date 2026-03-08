@@ -205,4 +205,84 @@ describe('queue.repository', () => {
     const random = queueRepo.findRandomPending(speaker.id)
     expect(random).toBeUndefined()
   })
+
+  it('should reset other playing items to pending when marking a new one as playing', () => {
+    const item1 = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100 })
+    const item2 = queueRepo.insert({ url: 'url2', title: 'Song 2', thumbnail: '', duration: 200 })
+
+    queueRepo.markPlaying(item1.id)
+    queueRepo.markPlaying(item2.id)
+
+    const found1 = queueRepo.findById(item1.id)
+    const found2 = queueRepo.findById(item2.id)
+    expect(found1!.status).toBe('pending')
+    expect(found2!.status).toBe('playing')
+  })
+
+  it('should mark an item as played', () => {
+    const item = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100 })
+    queueRepo.markPlaying(item.id)
+    queueRepo.markPlayed(item.id)
+
+    const found = queueRepo.findById(item.id)
+    expect(found!.status).toBe('played')
+    expect(found!.paused_position).toBeNull()
+  })
+
+  it('should reset played items to pending for a specific speaker', () => {
+    const speaker = speakerRepo.insert('sink1', 'Test Speaker')
+    const item1 = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100, speaker_id: speaker.id })
+    const item2 = queueRepo.insert({ url: 'url2', title: 'Song 2', thumbnail: '', duration: 200, speaker_id: speaker.id })
+
+    queueRepo.markPlayed(item1.id)
+    queueRepo.markPlayed(item2.id)
+
+    const count = queueRepo.resetPlayedToPending(speaker.id)
+    expect(count).toBe(2)
+
+    const found1 = queueRepo.findById(item1.id)
+    const found2 = queueRepo.findById(item2.id)
+    expect(found1!.status).toBe('pending')
+    expect(found2!.status).toBe('pending')
+  })
+
+  it('should clear played items along with pending items', () => {
+    const item1 = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100 })
+    const item2 = queueRepo.insert({ url: 'url2', title: 'Song 2', thumbnail: '', duration: 200 })
+    const item3 = queueRepo.insert({ url: 'url3', title: 'Song 3', thumbnail: '', duration: 300 })
+
+    queueRepo.markPlaying(item1.id)
+    queueRepo.markPlayed(item2.id)
+    // item3 stays pending
+
+    const cleared = queueRepo.clearPending()
+    expect(cleared).toBe(2) // pending + played
+
+    const remaining = queueRepo.findAll()
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0].status).toBe('playing')
+  })
+
+  it('should not include played items in findFirstPending', () => {
+    const item1 = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100 })
+    const item2 = queueRepo.insert({ url: 'url2', title: 'Song 2', thumbnail: '', duration: 200 })
+
+    queueRepo.markPlayed(item1.id)
+
+    const next = queueRepo.findFirstPending()
+    expect(next).toBeDefined()
+    expect(next!.title).toBe('Song 2')
+  })
+
+  it('should not include played items in findRandomPending', () => {
+    const speaker = speakerRepo.insert('sink1', 'Test Speaker')
+    const item1 = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100, speaker_id: speaker.id })
+    const item2 = queueRepo.insert({ url: 'url2', title: 'Song 2', thumbnail: '', duration: 200, speaker_id: speaker.id })
+
+    queueRepo.markPlayed(item1.id)
+    queueRepo.markPlayed(item2.id)
+
+    const random = queueRepo.findRandomPending(speaker.id)
+    expect(random).toBeUndefined()
+  })
 })

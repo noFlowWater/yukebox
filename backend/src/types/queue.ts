@@ -5,7 +5,7 @@ export interface QueueItem {
   thumbnail: string
   duration: number
   position: number
-  status: 'pending' | 'playing' | 'paused'
+  status: 'pending' | 'playing' | 'paused' | 'played'
   paused_position: number | null
   speaker_id: number | null
   schedule_id: number | null

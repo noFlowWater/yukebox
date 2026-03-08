@@ -47,13 +47,13 @@ export function QueueItem({
       onDragLeave={canDrag ? onDragLeave : undefined}
       onDrop={canDrag ? (e) => onDrop(e, index) : undefined}
       onDragEnd={canDrag ? onDragEnd : undefined}
-      className={`flex items-start gap-3 p-2 rounded-lg transition-colors min-w-0 ${
+      className={`flex items-start gap-3 p-2.5 rounded-xl transition-all min-w-0 ${
         isPlaying
-          ? 'bg-success/10 border border-success/30'
+          ? 'bg-success/10 border border-success/30 shadow-sm shadow-success/10'
           : isPaused
             ? 'bg-warning/5 border border-warning/20'
-            : `cursor-grab active:cursor-grabbing hover:bg-muted/50 ${
-                isDragging ? 'opacity-30' : ''
+            : `cursor-grab active:cursor-grabbing hover:bg-card/80 ${
+                isDragging ? 'opacity-30 scale-95' : ''
               } ${
                 isDragOver
                   ? 'border-t-2 border-primary'

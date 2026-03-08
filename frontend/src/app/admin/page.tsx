@@ -63,13 +63,13 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="max-w-2xl mx-auto px-4 pt-6 pb-6 flex flex-col gap-6">
+    <div className="min-h-screen bg-background overflow-x-hidden">
+      <main className="max-w-2xl mx-auto px-4 pt-6 pb-6 flex flex-col gap-6 animate-fade-in">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push('/')}>
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => router.push('/')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-2xl font-semibold">Administration</h1>
+          <h1 className="text-2xl font-display font-bold tracking-tight">Administration</h1>
         </div>
 
         <SettingsSection settings={settings} btAvailable={bluetooth.btAvailable} />

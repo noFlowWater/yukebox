@@ -61,8 +61,8 @@ export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSched
         </div>
       )}
 
-      <div className="max-h-[50vh] overflow-y-auto overflow-x-hidden">
-        <ul className="flex flex-col gap-1">
+      <div className="overflow-x-hidden">
+        <ul className="flex flex-col gap-1 stagger-children">
           {favorites.map((item) => {
             const isScheduleOpen = scheduleOpenId === item.id
             const isSelected = selectedSet.has(item.url)
@@ -71,8 +71,8 @@ export function FavoritesPanel({ onPlay, onAddToQueue, onBulkAddToQueue, onSched
             return (
               <li
                 key={item.id}
-                className={`flex items-start gap-3 p-2 rounded-lg transition-colors min-w-0 ${
-                  isSelected ? 'bg-muted/70' : 'hover:bg-muted/50'
+                className={`flex items-start gap-3 p-2.5 rounded-xl transition-all min-w-0 ${
+                  isSelected ? 'bg-card/80 border border-primary/20' : 'hover:bg-card/60'
                 }`}
               >
                 <SelectableCheckbox

@@ -61,10 +61,10 @@ export function SpeakerDashboard({ expanded }: SpeakerDashboardProps) {
             key={speaker.id}
             type="button"
             onClick={() => switchSpeaker(speaker.id)}
-            className={`w-full text-left rounded-lg px-3 py-2 transition-colors ${
+            className={`w-full text-left rounded-xl px-3 py-2 transition-all ${
               isActive
-                ? 'bg-primary/10 border border-primary/30'
-                : 'bg-muted/50 border border-transparent hover:bg-muted'
+                ? 'bg-primary/10 border border-primary/30 shadow-sm shadow-primary/10'
+                : 'bg-card/50 border border-border/30 hover:bg-card/80'
             } ${isOffline ? 'opacity-50' : ''}`}
           >
             <div className="flex items-center gap-2 min-w-0">

@@ -45,7 +45,7 @@ export function SpeakerBar() {
   if (speakers.length === 0) {
     const isAdmin = user?.role === 'admin'
     return (
-      <div className="border-b border-border bg-background">
+      <div className="border-b border-border/30 bg-card/50 backdrop-blur-sm">
         <div className="max-w-2xl mx-auto px-4 h-10 flex items-center gap-2">
           <SpeakerIcon className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="text-sm text-muted-foreground">
@@ -73,7 +73,7 @@ export function SpeakerBar() {
   const showDashboardToggle = speakers.length >= 2
 
   return (
-    <div className="border-b border-border bg-background">
+    <div className="border-b border-border/30 bg-card/50 backdrop-blur-sm">
       <div className="max-w-2xl mx-auto px-4 h-10 flex items-center gap-2">
         <SpeakerIcon className="h-4 w-4 text-muted-foreground shrink-0" />
 

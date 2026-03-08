@@ -7,7 +7,6 @@ import Image from 'next/image'
 import { UserPlus, Loader2, Github } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import * as api from '@/lib/api'
 
 export default function RegisterPage() {
@@ -54,72 +53,78 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
-      <div className="w-full max-w-sm flex flex-col items-center">
-      <Card className="w-full">
-        <CardHeader className="text-center flex flex-col items-center">
-          <Image src="/icon.svg" alt="YukeBox" width={64} height={64} className="mb-2" />
-          <CardTitle className="text-2xl font-semibold">YukeBox</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {isFirstUser ? 'Set up your admin account' : 'Create your account'}
-          </p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <Input
-              type="text"
-              placeholder="Username (3-20 chars, letters/numbers)"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoFocus
-              autoComplete="username"
-            />
-            <Input
-              type="password"
-              placeholder="Password (min 8 chars)"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-            <Input
-              type="password"
-              placeholder="Confirm password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 relative overflow-hidden">
+      <div className="absolute top-20 -left-20 w-72 h-72 rounded-full bg-primary/8 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-20 -right-20 w-72 h-72 rounded-full bg-primary/5 blur-[100px] pointer-events-none" />
+
+      <div className="w-full max-w-xs flex flex-col items-center relative z-10 animate-fade-in">
+        <Image src="/icon.svg" alt="YukeBox" width={48} height={48} className="mb-3" />
+        <h1 className="font-display text-2xl font-bold tracking-tight mb-1">
+          YukeBox
+        </h1>
+        <p className="text-sm text-muted-foreground font-light mb-8">
+          {isFirstUser ? 'Set up your admin account' : 'Create your account'}
+        </p>
+
+        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-3">
+          <Input
+            type="text"
+            placeholder="Username (3-20 chars, letters/numbers)"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoFocus
+            autoComplete="username"
+            className="h-12 rounded-xl bg-card border-border/50 px-4 text-sm"
+          />
+          <Input
+            type="password"
+            placeholder="Password (min 8 chars)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            className="h-12 rounded-xl bg-card border-border/50 px-4 text-sm"
+          />
+          <Input
+            type="password"
+            placeholder="Confirm password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+            className="h-12 rounded-xl bg-card border-border/50 px-4 text-sm"
+          />
+
+          {error && <p className="text-sm text-destructive px-1">{error}</p>}
+
+          <Button
+            type="submit"
+            disabled={loading || !username || !password || !confirmPassword}
+            className="h-12 rounded-xl font-medium mt-1"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Register
+              </>
             )}
-            <Button
-              type="submit"
-              disabled={loading || !username || !password || !confirmPassword}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <UserPlus className="h-4 w-4" />
-              )}
-              <span className="ml-2">Register</span>
-            </Button>
-          </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Already have an account?{' '}
-            <Link href="/login" className="text-primary hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
-      <a
-        href="https://github.com/noFlowWater/yukebox"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <Github className="h-3.5 w-3.5" />
-        noFlowWater/yukebox
-      </a>
+          </Button>
+        </form>
+
+        <p className="mt-6 text-sm text-muted-foreground">
+          Already have an account?{' '}
+          <Link href="/login" className="text-primary hover:underline">Sign in</Link>
+        </p>
+
+        <a
+          href="https://github.com/noFlowWater/yukebox"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-10 flex items-center gap-1.5 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+        >
+          <Github className="h-3.5 w-3.5" />
+          noFlowWater/yukebox
+        </a>
       </div>
     </div>
   )

@@ -118,8 +118,8 @@ export class PlaybackEngine extends EventEmitter {
         // mpv may already be stopped
       }
 
-      // Remove the current playing item
-      this.queue.removePlaying()
+      // Keep the current item in queue as pending instead of removing
+      this.queue.resetPlayingToPending()
       this.transitionToIdle()
     })
   }
@@ -147,7 +147,7 @@ export class PlaybackEngine extends EventEmitter {
   }
 
   getStatus(): MpvStatus {
-    const front = this.queue.front()
+    const current = this.queue.findPlaying() ?? this.queue.front()
     const isPlaying = this.state === 'playing' || this.state === 'loading'
     const isPaused = this.state === 'paused'
 
@@ -159,9 +159,9 @@ export class PlaybackEngine extends EventEmitter {
     return {
       playing: isPlaying,
       paused: isPaused,
-      title: (isPlaying || isPaused) && front ? front.title : '',
-      url: (isPlaying || isPaused) && front ? front.url : '',
-      duration: (isPlaying || isPaused) && front ? (cached.duration || front.duration) : 0,
+      title: (isPlaying || isPaused) && current ? current.title : '',
+      url: (isPlaying || isPaused) && current ? current.url : '',
+      duration: (isPlaying || isPaused) && current ? (cached.duration || current.duration) : 0,
       position: (isPlaying || isPaused) ? cached.position : 0,
       volume: cached.volume ?? this.defaultVolume,
       speaker_id: this.speakerId,
@@ -410,7 +410,7 @@ export class PlaybackEngine extends EventEmitter {
 
     try {
       await this.withMutex(async () => {
-        const current = this.queue.front()
+        const current = this.queue.findPlaying()
         if (!current) {
           this.transitionToIdle()
           return
@@ -450,13 +450,21 @@ export class PlaybackEngine extends EventEmitter {
             await this.playFront()
             break
           case 'shuffle':
-            this.queue.removeFront()
-            await this.playRandom()
+            this.queue.markPlayed(current.id)
+            if (this.queue.findRandomPending()) {
+              await this.playRandom()
+            } else {
+              this.endCycle()
+            }
             break
           case 'sequential':
           default:
-            this.queue.removeFront()
-            await this.playFront()
+            this.queue.markPlayed(current.id)
+            if (this.queue.findNextPlayable()) {
+              await this.playFront()
+            } else {
+              this.endCycle()
+            }
             break
         }
       })
@@ -470,13 +478,13 @@ export class PlaybackEngine extends EventEmitter {
 
     try {
       await this.withMutex(async () => {
-        const current = this.queue.front()
+        const current = this.queue.findPlaying()
         if (current?.schedule_id) {
           scheduleRepo.updateStatus(current.schedule_id, 'failed')
         }
 
         // Remove failed item
-        this.queue.removeFront()
+        if (current) this.queue.remove(current.id)
 
         // Try next
         await this.playFront()
@@ -511,7 +519,11 @@ export class PlaybackEngine extends EventEmitter {
   }
 
   private async playRandom(): Promise<void> {
-    const item = this.queue.findRandomPending()
+    let item = this.queue.findRandomPending()
+    if (!item && this.queue.hasPlayed()) {
+      this.queue.resetPlayedToPending()
+      item = this.queue.findRandomPending()
+    }
     if (!item) {
       this.transitionToIdle()
       return
@@ -531,7 +543,11 @@ export class PlaybackEngine extends EventEmitter {
   }
 
   private async playFront(): Promise<void> {
-    const item = this.queue.findNextPlayable()
+    let item = this.queue.findNextPlayable()
+    if (!item && this.queue.hasPlayed()) {
+      this.queue.resetPlayedToPending()
+      item = this.queue.findNextPlayable()
+    }
     if (!item) {
       this.transitionToIdle()
       return
@@ -586,6 +602,14 @@ export class PlaybackEngine extends EventEmitter {
     this.state = 'idle'
     this.stopPositionHeartbeat()
     this.scheduleStatusEmit()
+  }
+
+  private endCycle(): void {
+    this.transitionToIdle()
+    // Reset played items after SSE emit (16ms) so frontend sees has_next: false first
+    setTimeout(() => {
+      this.queue.resetPlayedToPending()
+    }, 50)
   }
 
   private transitionToPlaying(): void {

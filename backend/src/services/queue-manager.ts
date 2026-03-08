@@ -123,8 +123,28 @@ export class QueueManager {
     this.reload()
   }
 
+  resetPlayingToPending(): void {
+    queueRepo.resetPlayingToPending()
+    this.reload()
+  }
+
+  markPlayed(id: number): boolean {
+    const result = queueRepo.markPlayed(id)
+    if (result) this.reload()
+    return result
+  }
+
+  resetPlayedToPending(): void {
+    queueRepo.resetPlayedToPending(this.speakerId)
+    this.reload()
+  }
+
   getAll(): QueueItem[] {
     return [...this.items]
+  }
+
+  findPlaying(): QueueItem | null {
+    return this.items.find((i) => i.status === 'playing') ?? null
   }
 
   findPaused(): QueueItem | null {
@@ -137,6 +157,10 @@ export class QueueManager {
 
   hasNextPlayable(): boolean {
     return this.items.some((i) => i.status === 'pending' || i.status === 'paused')
+  }
+
+  hasPlayed(): boolean {
+    return this.items.some((i) => i.status === 'played')
   }
 
   findNextPlayable(): QueueItem | null {
@@ -155,8 +179,9 @@ export class QueueManager {
   static load(speakerId: number): QueueManager {
     const manager = new QueueManager(speakerId)
 
-    // Reset any 'playing' items to 'pending' on startup (server restart recovery)
+    // Reset any 'playing' or 'played' items to 'pending' on startup (server restart recovery)
     queueRepo.resetPlayingToPending()
+    queueRepo.resetPlayedToPending(speakerId)
 
     manager.reload()
     return manager

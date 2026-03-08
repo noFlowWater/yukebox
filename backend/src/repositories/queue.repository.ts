@@ -71,8 +71,13 @@ export function remove(id: number): boolean {
 
 export function markPlaying(id: number): boolean {
   const db = getDb()
-  const result = db.prepare("UPDATE queue SET status = 'playing', paused_position = NULL WHERE id = ?").run(id)
-  return result.changes > 0
+  const transaction = db.transaction(() => {
+    // Reset any existing playing items to pending first
+    db.prepare("UPDATE queue SET status = 'pending', paused_position = NULL WHERE status = 'playing' AND id != ?").run(id)
+    const result = db.prepare("UPDATE queue SET status = 'playing', paused_position = NULL WHERE id = ?").run(id)
+    return result.changes > 0
+  })
+  return transaction()
 }
 
 export function pausePlaying(playbackPosition: number): boolean {
@@ -109,8 +114,8 @@ export function removePlaying(): number {
 export function clearPending(speakerId?: number): number {
   const db = getDb()
   const result = speakerId !== undefined
-    ? db.prepare("DELETE FROM queue WHERE status = 'pending' AND speaker_id = ?").run(speakerId)
-    : db.prepare("DELETE FROM queue WHERE status = 'pending'").run()
+    ? db.prepare("DELETE FROM queue WHERE status IN ('pending', 'played') AND speaker_id = ?").run(speakerId)
+    : db.prepare("DELETE FROM queue WHERE status IN ('pending', 'played')").run()
   // Reorder remaining items
   const remaining = db.prepare("SELECT id FROM queue ORDER BY position ASC").all() as { id: number }[]
   const reorder = db.transaction(() => {
@@ -148,6 +153,18 @@ export function updatePosition(id: number, newPosition: number): boolean {
 
   transaction()
   return true
+}
+
+export function markPlayed(id: number): boolean {
+  const db = getDb()
+  const result = db.prepare("UPDATE queue SET status = 'played', paused_position = NULL WHERE id = ?").run(id)
+  return result.changes > 0
+}
+
+export function resetPlayedToPending(speakerId: number): number {
+  const db = getDb()
+  const result = db.prepare("UPDATE queue SET status = 'pending' WHERE status = 'played' AND speaker_id = ?").run(speakerId)
+  return result.changes
 }
 
 export function resetPlayingToPending(): number {

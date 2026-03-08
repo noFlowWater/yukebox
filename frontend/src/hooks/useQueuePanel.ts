@@ -103,7 +103,7 @@ export function useQueuePanel() {
   // --- Clear all pending ---
   const handleClearAll = useCallback(async () => {
     const prev = queue
-    setQueue((q) => q.filter((item) => item.status === 'playing'))
+    setQueue((q) => q.filter((item) => item.status === 'playing' || item.status === 'paused'))
     try {
       await api.clearQueue(activeSpeakerId)
     } catch (err) {
@@ -182,7 +182,7 @@ export function useQueuePanel() {
     }
   }, [fetchQueue])
 
-  const hasPending = queue.some((item) => item.status === 'pending')
+  const hasPending = queue.some((item) => item.status === 'pending' || item.status === 'played')
 
   return {
     queue,

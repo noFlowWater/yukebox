@@ -1,6 +1,6 @@
 {
   "name": "yukebox-backend",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "YukeBox backend API server",
   "type": "module",
   "main": "dist/server.js",

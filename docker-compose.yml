@@ -5,7 +5,7 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - BACKEND_PORT=${BACKEND_PORT:-4000}
-      - PULSE_SERVER=unix:/tmp/pulse-native
+      - PULSE_SERVER=unix:/tmp/pulse/native
       - PULSE_COOKIE=/tmp/pulse-cookie
       - MPV_SOCKET=${MPV_SOCKET:-/tmp/mpv-socket}
       - DB_PATH=${DB_PATH:-/app/data/yukebox.db}
@@ -13,8 +13,8 @@ services:
       - FRONTEND_URL=http://frontend:3000
       - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
     volumes:
-      - ${PULSE_SOCKET:-/run/user/1000/pulse/native}:/tmp/pulse-native
-      - ${PULSE_COOKIE:-/run/user/1000/pulse/cookie}:/tmp/pulse-cookie:ro
+      - ${PULSE_DIR:-/run/user/1000/pulse}:/tmp/pulse
+      - ${PULSE_COOKIE:-/home/user/.config/pulse/cookie}:/tmp/pulse-cookie:ro
       - /var/run/dbus:/var/run/dbus
       - backend-data:/app/data
     group_add:

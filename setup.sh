@@ -22,11 +22,11 @@ fi
 echo "[OK] Docker found"
 
 # 3. PulseAudio/PipeWire check
-PULSE_SOCKET="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pulse/native"
-if [ -S "$PULSE_SOCKET" ]; then
-  echo "[OK] PulseAudio socket: $PULSE_SOCKET"
+PULSE_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pulse"
+if [ -S "$PULSE_DIR/native" ]; then
+  echo "[OK] PulseAudio socket: $PULSE_DIR/native"
 else
-  echo "[!!] PulseAudio socket not found at $PULSE_SOCKET"
+  echo "[!!] PulseAudio socket not found at $PULSE_DIR/native"
   echo "     Make sure PulseAudio or PipeWire (with pipewire-pulse) is running."
   read -rp "     Continue anyway? [y/N] " yn
   [[ "$yn" =~ ^[Yy] ]] || exit 1
@@ -150,7 +150,7 @@ else
   cat > .env <<EOF
 PORT=3000
 NODE_ENV=production
-PULSE_SOCKET=$PULSE_SOCKET
+PULSE_DIR=$PULSE_DIR
 PULSE_COOKIE=$PULSE_COOKIE
 JWT_SECRET=$JWT_SECRET
 EOF

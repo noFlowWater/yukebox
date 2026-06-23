@@ -13,7 +13,7 @@ export const config = {
   },
   get bcryptRounds() { return 12 },
   get cookieSecure() { return this.nodeEnv === 'production' },
-  get pulseServer() { return process.env.PULSE_SERVER || 'unix:/run/user/1000/pulse/native' },
+  get pulseServer() { return process.env.PULSE_SERVER || 'unix:/tmp/pulse/native' },
 }
 
 export function mpvSocketPath(speakerId: number): string {

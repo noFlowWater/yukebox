@@ -21,18 +21,27 @@ if ! docker compose version &>/dev/null && ! command -v docker-compose &>/dev/nu
 fi
 echo "[OK] Docker found"
 
-# 3. PulseAudio/PipeWire check
-PULSE_SOCKET="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pulse/native"
-if [ -S "$PULSE_SOCKET" ]; then
-  echo "[OK] PulseAudio socket: $PULSE_SOCKET"
+# 3. Enable user linger (ensures PulseAudio runtime dir exists at boot)
+if loginctl show-user "$(whoami)" --property=Linger 2>/dev/null | grep -q "Linger=yes"; then
+  echo "[OK] User linger enabled"
 else
-  echo "[!!] PulseAudio socket not found at $PULSE_SOCKET"
+  echo "     Enabling user linger for boot-time PulseAudio access..."
+  loginctl enable-linger "$(whoami)" 2>/dev/null || true
+  echo "[OK] User linger enabled"
+fi
+
+# 4. PulseAudio/PipeWire check
+PULSE_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/pulse"
+if [ -S "$PULSE_DIR/native" ]; then
+  echo "[OK] PulseAudio socket: $PULSE_DIR/native"
+else
+  echo "[!!] PulseAudio socket not found at $PULSE_DIR/native"
   echo "     Make sure PulseAudio or PipeWire (with pipewire-pulse) is running."
   read -rp "     Continue anyway? [y/N] " yn
   [[ "$yn" =~ ^[Yy] ]] || exit 1
 fi
 
-# 4. Bluetooth device check + interactive connect
+# 5. Bluetooth device check + interactive connect
 if command -v bluetoothctl &>/dev/null; then
   DEVICES=$(bluetoothctl devices Connected 2>/dev/null || true)
   if [ -n "$DEVICES" ]; then
@@ -133,7 +142,7 @@ if command -v bluetoothctl &>/dev/null; then
   fi
 fi
 
-# 5. Generate .env
+# 6. Generate .env
 echo ""
 if [ -f .env ]; then
   echo ".env already exists. Skipping generation."
@@ -150,14 +159,14 @@ else
   cat > .env <<EOF
 PORT=3000
 NODE_ENV=production
-PULSE_SOCKET=$PULSE_SOCKET
+PULSE_DIR=$PULSE_DIR
 PULSE_COOKIE=$PULSE_COOKIE
 JWT_SECRET=$JWT_SECRET
 EOF
   echo "Created .env with auto-detected settings."
 fi
 
-# 6. Pull & run
+# 7. Pull & run
 echo ""
 read -rp "Pull images and start YukeBox? [Y/n] " yn
 if [[ ! "$yn" =~ ^[Nn] ]]; then

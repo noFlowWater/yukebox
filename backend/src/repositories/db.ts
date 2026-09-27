@@ -200,4 +200,30 @@ function runMigrations(db: Database.Database): void {
       db.prepare('UPDATE schema_version SET version = ?').run(10)
     })()
   }
+
+  if (version < 11) {
+    // Queue positions become per-speaker (0..n-1 within each speaker)
+    db.transaction(() => {
+      renumberQueuePositions(db)
+      db.prepare('UPDATE schema_version SET version = ?').run(11)
+    })()
+  }
+}
+
+export function renumberQueuePositions(db: Database.Database, speakerId?: number | null): void {
+  const rows = (speakerId === undefined
+    ? db.prepare('SELECT id, speaker_id FROM queue ORDER BY speaker_id, position ASC, id ASC').all()
+    : db.prepare('SELECT id, speaker_id FROM queue WHERE speaker_id IS ? ORDER BY position ASC, id ASC').all(speakerId)
+  ) as { id: number; speaker_id: number | null }[]
+
+  const update = db.prepare('UPDATE queue SET position = ? WHERE id = ?')
+  let currentSpeaker: number | null | undefined
+  let index = 0
+  for (const row of rows) {
+    if (row.speaker_id !== currentSpeaker) {
+      currentSpeaker = row.speaker_id
+      index = 0
+    }
+    update.run(index++, row.id)
+  }
 }

@@ -114,12 +114,12 @@ export class QueueManager {
   }
 
   pauseFront(position: number): void {
-    queueRepo.pausePlaying(position)
+    queueRepo.pausePlaying(this.speakerId, position)
     this.reload()
   }
 
   resetPlayingToPending(): void {
-    queueRepo.resetPlayingToPending()
+    queueRepo.resetPlayingToPending(this.speakerId)
     this.reload()
   }
 
@@ -181,7 +181,7 @@ export class QueueManager {
     const manager = new QueueManager(speakerId)
 
     // Reset any 'playing' or 'played' items to 'pending' on startup (server restart recovery)
-    queueRepo.resetPlayingToPending()
+    queueRepo.resetPlayingToPending(speakerId)
     queueRepo.resetPlayedToPending(speakerId)
 
     manager.reload()

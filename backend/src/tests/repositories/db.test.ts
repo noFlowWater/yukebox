@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { getDb, closeDb } from '../../repositories/db.js'
+import { getDb, closeDb, renumberQueuePositions } from '../../repositories/db.js'
 
 beforeEach(() => {
   process.env.DB_PATH = ':memory:'
@@ -121,10 +121,10 @@ describe('db', () => {
     expect(col).toBeDefined()
   })
 
-  it('should set schema_version to 10', () => {
+  it('should set schema_version to 11', () => {
     const db = getDb()
     const row = db.prepare('SELECT version FROM schema_version').get() as { version: number }
-    expect(row.version).toBe(10)
+    expect(row.version).toBe(11)
   })
 
   it('should add playback_mode column to speakers in v10', () => {
@@ -148,5 +148,24 @@ describe('db', () => {
     const columns = db.prepare('PRAGMA table_info(speakers)').all() as { name: string }[]
     const col = columns.find((c) => c.name === 'bt_device_id')
     expect(col).toBeDefined()
+  })
+
+  it('should renumber legacy global queue positions per speaker', () => {
+    const db = getDb()
+    db.prepare("INSERT INTO speakers (sink_name, display_name) VALUES ('a', 'A'), ('b', 'B')").run()
+    const insert = db.prepare('INSERT INTO queue (url, title, position, speaker_id) VALUES (?, ?, ?, ?)')
+    // Legacy layout: one global position sequence shared by all speakers
+    insert.run('a1', 'a1', 0, 1)
+    insert.run('b1', 'b1', 1, 2)
+    insert.run('a2', 'a2', 2, 1)
+    insert.run('b2', 'b2', 5, 2)
+
+    renumberQueuePositions(db)
+
+    const rows = db.prepare('SELECT title, position FROM queue ORDER BY speaker_id, position').all()
+    expect(rows).toEqual([
+      { title: 'a1', position: 0 }, { title: 'a2', position: 1 },
+      { title: 'b1', position: 0 }, { title: 'b2', position: 1 },
+    ])
   })
 })

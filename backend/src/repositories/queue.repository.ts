@@ -95,27 +95,11 @@ export function findPaused(): QueueItem | undefined {
   ).get() as QueueItem | undefined
 }
 
-export function removePlaying(): number {
-  const db = getDb()
-  const playing = db.prepare("SELECT * FROM queue WHERE status = 'playing'").all() as QueueItem[]
-  if (playing.length === 0) return 0
-
-  const transaction = db.transaction(() => {
-    for (const item of playing) {
-      db.prepare('DELETE FROM queue WHERE id = ?').run(item.id)
-      db.prepare('UPDATE queue SET position = position - 1 WHERE position > ?').run(item.position)
-    }
-  })
-
-  transaction()
-  return playing.length
-}
-
 export function clearPending(speakerId?: number): number {
   const db = getDb()
   const result = speakerId !== undefined
-    ? db.prepare("DELETE FROM queue WHERE status IN ('pending', 'played') AND speaker_id = ?").run(speakerId)
-    : db.prepare("DELETE FROM queue WHERE status IN ('pending', 'played')").run()
+    ? db.prepare("DELETE FROM queue WHERE status IN ('pending', 'played', 'failed') AND speaker_id = ?").run(speakerId)
+    : db.prepare("DELETE FROM queue WHERE status IN ('pending', 'played', 'failed')").run()
   // Reorder remaining items
   const remaining = db.prepare("SELECT id FROM queue ORDER BY position ASC").all() as { id: number }[]
   const reorder = db.transaction(() => {
@@ -158,6 +142,12 @@ export function updatePosition(id: number, newPosition: number): boolean {
 export function markPlayed(id: number): boolean {
   const db = getDb()
   const result = db.prepare("UPDATE queue SET status = 'played', paused_position = NULL WHERE id = ?").run(id)
+  return result.changes > 0
+}
+
+export function markFailed(id: number): boolean {
+  const db = getDb()
+  const result = db.prepare("UPDATE queue SET status = 'failed', paused_position = NULL WHERE id = ?").run(id)
   return result.changes > 0
 }
 

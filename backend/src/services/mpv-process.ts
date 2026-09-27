@@ -46,11 +46,14 @@ export class MpvProcess extends EventEmitter {
       `--audio-device=pulse/${this.sinkName}`,
     ]
 
-    this.process = spawn('mpv', args, {
+    const proc = spawn('mpv', args, {
       stdio: 'ignore',
     })
+    this.process = proc
 
-    this.process.on('exit', (code) => {
+    proc.on('exit', (code) => {
+      // A process replaced via kill() must not tear down its successor's state
+      if (this.process !== proc) return
       this.connected = false
       this.socket?.destroy()
       this.socket = null
@@ -60,7 +63,7 @@ export class MpvProcess extends EventEmitter {
       }
     })
 
-    this.process.on('error', (err) => {
+    proc.on('error', (err) => {
       if (!this.destroyed) {
         this.emit('track-error', err)
       }
@@ -162,11 +165,16 @@ export class MpvProcess extends EventEmitter {
       return
     }
 
+    if (msg.event === 'file-loaded') {
+      this.emit('track-loaded')
+      return
+    }
+
     if (msg.event === 'end-file') {
       if (msg.reason === 'eof') {
         this.emit('track-end')
       } else if (msg.reason === 'error') {
-        this.emit('track-error', new Error('mpv playback error'))
+        this.emit('track-error', new Error(`mpv playback error: ${msg.file_error ?? 'unknown'}`))
       }
       // 'stop' reason = loadfile replace, ignore (not a real track end)
     }

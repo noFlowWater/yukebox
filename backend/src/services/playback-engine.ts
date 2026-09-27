@@ -23,7 +23,34 @@ interface HistoryEntry {
   duration: number
 }
 
+interface ScheduleTrigger {
+  id: number
+  url: string
+  query: string
+  title: string
+  thumbnail: string
+  duration: number
+  group_id: string | null
+}
+
+interface ResolvedTrack {
+  url: string
+  title: string
+  thumbnail: string
+  duration: number
+  audioUrl: string
+}
+
 const MAX_HISTORY = 500
+
+// Automatic advance stops after this many failures in a row, so a systemic
+// problem (outdated yt-dlp, network outage, missing sink) cannot burn through
+// the whole queue. Failed items stay in the queue with status 'failed'.
+export const MAX_CONSECUTIVE_FAILURES = 3
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
 
 export class PlaybackEngine extends EventEmitter {
   readonly speakerId: number
@@ -37,6 +64,7 @@ export class PlaybackEngine extends EventEmitter {
   private emitTimer: ReturnType<typeof setTimeout> | null = null
   private positionHeartbeat: ReturnType<typeof setInterval> | null = null
   private playHistory: HistoryEntry[] = []
+  private consecutiveFailures = 0
 
   constructor(speakerId: number) {
     super()
@@ -53,8 +81,9 @@ export class PlaybackEngine extends EventEmitter {
     this.queue = QueueManager.load(speakerId)
 
     this.mpv.on('track-end', () => this.handleTrackEnd())
-    this.mpv.on('track-error', () => this.handleTrackError())
-    this.mpv.on('process-exit', () => this.handleProcessExit())
+    this.mpv.on('track-loaded', () => { this.consecutiveFailures = 0 })
+    this.mpv.on('track-error', (err: Error) => this.handleTrackError(err))
+    this.mpv.on('process-exit', (code: number | null) => this.handleProcessExit(code))
     this.mpv.on('property-change', (name: string, _value: unknown) => this.handlePropertyChange(name))
   }
 
@@ -68,34 +97,11 @@ export class PlaybackEngine extends EventEmitter {
     duration?: number
   }): Promise<PlayResult> {
     return await this.withMutex(async () => {
-      // Resolve track info if needed
-      let url: string
-      let title: string
-      let thumbnail: string
-      let duration: number
+      this.consecutiveFailures = 0
 
-      if (input.url && input.title) {
-        url = input.url
-        title = input.title
-        thumbnail = input.thumbnail ?? ''
-        duration = input.duration ?? 0
-      } else if (input.url) {
-        const track = await ytdlp.resolve(input.url)
-        url = track.url
-        title = track.title
-        thumbnail = track.thumbnail
-        duration = track.duration
-      } else if (input.query) {
-        const results = await ytdlp.search(input.query, 1)
-        if (results.length === 0) throw new Error('No results found')
-        const track = await ytdlp.resolve(results[0].url)
-        url = track.url
-        title = track.title
-        thumbnail = track.thumbnail
-        duration = track.duration
-      } else {
-        throw new Error('Either url or query is required')
-      }
+      // Resolve the audio stream before touching current playback, so a
+      // failure leaves the current track playing and the queue untouched
+      const { url, title, thumbnail, duration, audioUrl } = await this.resolveInput(input)
 
       // If currently playing, push to history and pause current item
       if (this.state === 'playing' || this.state === 'paused') {
@@ -112,8 +118,12 @@ export class PlaybackEngine extends EventEmitter {
       })
       this.queue.markPlaying(queueItem.id)
 
-      // Play it
-      await this.startPlayback(url, title)
+      try {
+        await this.startPlayback(audioUrl, title)
+      } catch (err) {
+        this.recordFailure(queueItem, err)
+        throw err
+      }
 
       return { title, url, thumbnail, duration }
     })
@@ -160,6 +170,7 @@ export class PlaybackEngine extends EventEmitter {
   async skip(): Promise<void> {
     return await this.withMutex(async () => {
       if (this.state === 'idle') return
+      this.consecutiveFailures = 0
 
       const current = this.queue.findPlaying()
       if (!current) {
@@ -219,6 +230,7 @@ export class PlaybackEngine extends EventEmitter {
       }
 
       const prev = this.playHistory.pop()!
+      this.consecutiveFailures = 0
 
       // Stop current playback
       try {
@@ -333,8 +345,9 @@ export class PlaybackEngine extends EventEmitter {
             duration: track.duration,
           })
         }
-      } catch {
-        // Skip failed items
+      } catch (err) {
+        // Skip items that cannot be resolved — they are never inserted
+        this.logWarning(`bulk add skipped ${item.url}: ${errorMessage(err)}`)
       }
     }
 
@@ -372,6 +385,18 @@ export class PlaybackEngine extends EventEmitter {
       const item = items.find((i) => i.id === id)
       if (!item) return null
 
+      this.consecutiveFailures = 0
+
+      // Resolve before touching current playback — on failure the item stays
+      // in place marked 'failed' and the current track keeps playing
+      let track: ResolvedTrack
+      try {
+        track = await ytdlp.resolve(item.url)
+      } catch (err) {
+        this.recordFailure(item, err)
+        throw err
+      }
+
       // If currently playing, push to history and pause current item
       if (this.state === 'playing' || this.state === 'paused') {
         this.pushCurrentToHistory()
@@ -384,13 +409,11 @@ export class PlaybackEngine extends EventEmitter {
 
       this.queue.markPlaying(moved.id)
 
-      // Resolve and play
       try {
-        const track = await ytdlp.resolve(moved.url)
         await this.startPlayback(track.audioUrl, moved.title)
-      } catch {
-        this.queue.remove(moved.id)
-        return null
+      } catch (err) {
+        this.recordFailure(moved, err)
+        throw err
       }
 
       return moved
@@ -399,68 +422,77 @@ export class PlaybackEngine extends EventEmitter {
 
   // --- Schedule trigger ---
 
-  async triggerSchedule(schedule: {
-    id: number
-    url: string
-    query: string
-    title: string
-    thumbnail: string
-    duration: number
-    group_id: string | null
-  }): Promise<void> {
+  async triggerSchedule(schedule: ScheduleTrigger): Promise<void> {
     return await this.withMutex(async () => {
-      // Mark any currently-playing schedules as completed
-      const playingSchedules = scheduleRepo.findByStatus('playing')
-      for (const s of playingSchedules) {
-        if (s.speaker_id === this.speakerId) {
-          scheduleRepo.updateStatus(s.id, 'completed')
-        }
-      }
-
-      // If currently playing, pause current item
-      if (this.state === 'playing' || this.state === 'paused') {
-        await this.pauseCurrentItem()
-      }
-
-      // Insert schedule item at front of queue
-      this.queue.removePlaying()
-      const queueItem = this.queue.insertAtFront({
-        url: schedule.url,
-        title: schedule.title,
-        thumbnail: schedule.thumbnail,
-        duration: schedule.duration,
-        schedule_id: schedule.id,
-      })
-      this.queue.markPlaying(queueItem.id)
-
-      // Resolve and play
-      try {
-        let track
-        if (schedule.url) {
-          track = await ytdlp.resolve(schedule.url)
-        } else {
-          const results = await ytdlp.search(schedule.query, 1)
-          if (results.length === 0) throw new Error('No results found')
-          track = await ytdlp.resolve(results[0].url)
-        }
-
-        await this.startPlayback(track.audioUrl, schedule.title)
-        scheduleRepo.updateStatus(schedule.id, 'playing')
-      } catch {
-        this.queue.remove(queueItem.id)
-        scheduleRepo.updateStatus(schedule.id, 'failed')
-      }
+      await this.startSchedule(schedule)
     })
   }
 
-  async triggerGroupContinuation(groupId: string): Promise<boolean> {
+  // Must be called while holding the mutex. Returns true when playback was
+  // taken over (started, or failed and handed off to the next item), false
+  // when nothing changed and the caller should decide what plays next.
+  private async startSchedule(schedule: ScheduleTrigger): Promise<boolean> {
+    this.consecutiveFailures = 0
+
+    // Resolve first — a failed schedule must not interrupt current playback
+    let track: ResolvedTrack
+    try {
+      if (schedule.url) {
+        track = await ytdlp.resolve(schedule.url)
+      } else {
+        const results = await ytdlp.search(schedule.query, 1)
+        if (results.length === 0) throw new Error('No results found')
+        track = await ytdlp.resolve(results[0].url)
+      }
+    } catch (err) {
+      this.logWarning(`schedule ${schedule.id} "${schedule.title}" failed to resolve: ${errorMessage(err)}`)
+      scheduleRepo.updateStatus(schedule.id, 'failed')
+      return false
+    }
+
+    // Mark any currently-playing schedules as completed
+    const playingSchedules = scheduleRepo.findByStatus('playing')
+    for (const s of playingSchedules) {
+      if (s.speaker_id === this.speakerId) {
+        scheduleRepo.updateStatus(s.id, 'completed')
+      }
+    }
+
+    // If currently playing, pause current item
+    if (this.state === 'playing' || this.state === 'paused') {
+      await this.pauseCurrentItem()
+    }
+
+    // Insert schedule item at front of queue
+    const queueItem = this.queue.insertAtFront({
+      url: schedule.url,
+      title: schedule.title,
+      thumbnail: schedule.thumbnail,
+      duration: schedule.duration,
+      schedule_id: schedule.id,
+    })
+    this.queue.markPlaying(queueItem.id)
+
+    try {
+      await this.startPlayback(track.audioUrl, schedule.title)
+      scheduleRepo.updateStatus(schedule.id, 'playing')
+    } catch (err) {
+      this.recordFailure(queueItem, err)
+      await this.continueAfterFailure()
+    }
+    return true
+  }
+
+  private async triggerGroupContinuation(groupId: string): Promise<boolean> {
     const pending = scheduleRepo.findPendingByGroup(groupId)
     if (pending.length === 0) return false
 
     const next = pending[0]
     if (next.speaker_id !== this.speakerId) return false
 
-    await this.triggerSchedule({
+    // Called from advanceToNext, which already holds the mutex — going through
+    // triggerSchedule here would wait on our own lock forever
+    return await this.startSchedule({
       id: next.id,
       url: next.url,
       query: next.query,
@@ -469,10 +501,39 @@ export class PlaybackEngine extends EventEmitter {
       duration: next.duration,
       group_id: next.group_id,
     })
-    return true
   }
 
   // --- Internal ---
+
+  private async resolveInput(input: {
+    url?: string
+    query?: string
+    title?: string
+    thumbnail?: string
+    duration?: number
+  }): Promise<ResolvedTrack> {
+    let url = input.url
+    if (!url) {
+      if (!input.query) throw new Error('Either url or query is required')
+      const results = await ytdlp.search(input.query, 1)
+      if (results.length === 0) throw new Error('No results found')
+      url = results[0].url
+    }
+
+    const track = await ytdlp.resolve(url)
+
+    // Keep caller-provided metadata (e.g. from search results) when present
+    if (input.url && input.title) {
+      return {
+        url: input.url,
+        title: input.title,
+        thumbnail: input.thumbnail ?? '',
+        duration: input.duration ?? 0,
+        audioUrl: track.audioUrl,
+      }
+    }
+    return track
+  }
 
   private async startPlayback(audioUrl: string, title: string, startPosition?: number): Promise<void> {
     this.state = 'loading'
@@ -503,26 +564,24 @@ export class PlaybackEngine extends EventEmitter {
   private async playSpecificItem(entry: HistoryEntry): Promise<void> {
     // Find in queue by URL, or re-insert
     const items = this.queue.getAll()
-    let item = items.find((i) => i.url === entry.url && (i.status === 'pending' || i.status === 'paused' || i.status === 'played'))
+    let item = items.find((i) => i.url === entry.url && i.status !== 'playing')
 
-    if (item) {
-      this.queue.markPlaying(item.id)
-    } else {
+    if (!item) {
       // Item was deleted from queue — re-insert at front
-      const created = this.queue.insertAtFront({
+      item = this.queue.insertAtFront({
         url: entry.url,
         title: entry.title,
         thumbnail: entry.thumbnail,
         duration: entry.duration,
       })
-      this.queue.markPlaying(created.id)
     }
+    this.queue.markPlaying(item.id)
 
     try {
       const track = await ytdlp.resolve(entry.url)
       await this.startPlayback(track.audioUrl, entry.title)
-    } catch {
-      // yt-dlp failed — transition to idle
+    } catch (err) {
+      this.recordFailure(item, err)
       this.transitionToIdle()
     }
   }
@@ -559,8 +618,9 @@ export class PlaybackEngine extends EventEmitter {
 
         await this.advanceToNext(current, false)
       })
-    } catch {
+    } catch (err) {
       // Prevent crashes from propagating
+      this.logWarning(`track end handling failed: ${errorMessage(err)}`)
     }
   }
 
@@ -622,30 +682,72 @@ export class PlaybackEngine extends EventEmitter {
     }
   }
 
-  private async handleTrackError(): Promise<void> {
+  private async handleTrackError(err: Error): Promise<void> {
     if (this.mutex) return
 
     try {
       await this.withMutex(async () => {
         const current = this.queue.findPlaying()
-        if (current?.schedule_id) {
-          scheduleRepo.updateStatus(current.schedule_id, 'failed')
+        if (!current) {
+          this.transitionToIdle()
+          return
         }
 
-        // Remove failed item
-        if (current) this.queue.remove(current.id)
-
-        // Try next
-        await this.playFront()
+        this.recordFailure(current, err)
+        await this.continueAfterFailure()
       })
-    } catch {
+    } catch (handlerErr) {
       // Prevent crashes from propagating
+      this.logWarning(`track error handling failed: ${errorMessage(handlerErr)}`)
     }
   }
 
-  private async handleProcessExit(): Promise<void> {
+  private async handleProcessExit(code: number | null): Promise<void> {
     // mpv crashed — treat same as track error
-    await this.handleTrackError()
+    await this.handleTrackError(new Error(`mpv exited unexpectedly (code ${code})`))
+  }
+
+  // Keeps the item in the queue as 'failed' — playback failures never delete
+  // queue items. The user can retry or remove it explicitly.
+  private recordFailure(item: QueueItem, err: unknown): void {
+    this.consecutiveFailures++
+    this.queue.markFailed(item.id)
+    if (item.schedule_id) {
+      scheduleRepo.updateStatus(item.schedule_id, 'failed')
+    }
+    this.logWarning(
+      `failed to play queue item ${item.id} "${item.title}" ` +
+      `(${this.consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}): ${errorMessage(err)}`,
+    )
+  }
+
+  // Skip past a failed item following the playback mode, unless too many
+  // failures happened in a row — then stop and leave the rest of the queue as is.
+  private async continueAfterFailure(): Promise<void> {
+    if (this.consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+      this.logWarning(`stopping playback after ${this.consecutiveFailures} consecutive failures`)
+      this.transitionToIdle()
+      return
+    }
+
+    const mode = this.getPlaybackMode()
+    if (mode === 'shuffle') {
+      if (this.queue.findRandomPending()) {
+        await this.playRandom()
+      } else {
+        this.endCycle()
+      }
+    } else if (mode === 'repeat-all') {
+      await this.playFront()
+    } else if (this.queue.findNextPlayable()) {
+      await this.playFront()
+    } else {
+      this.endCycle()
+    }
+  }
+
+  private logWarning(message: string): void {
+    console.warn(`[playback] speaker ${this.speakerId}: ${message}`)
   }
 
   private getPlaybackMode(): PlaybackMode {
@@ -660,10 +762,9 @@ export class PlaybackEngine extends EventEmitter {
     try {
       const track = await ytdlp.resolve(item.url)
       await this.startPlayback(track.audioUrl, item.title)
-    } catch {
-      // Failed to replay — fall back to sequential advance
-      this.queue.removeFront()
-      await this.playFront()
+    } catch (err) {
+      this.recordFailure(item, err)
+      await this.continueAfterFailure()
     }
   }
 
@@ -684,10 +785,9 @@ export class PlaybackEngine extends EventEmitter {
       const track = await ytdlp.resolve(item.url)
       const startPosition = item.status === 'paused' ? (item.paused_position ?? undefined) : undefined
       await this.startPlayback(track.audioUrl, item.title, startPosition)
-    } catch {
-      // yt-dlp failed — remove and try another random
-      this.queue.remove(item.id)
-      await this.playRandom()
+    } catch (err) {
+      this.recordFailure(item, err)
+      await this.continueAfterFailure()
     }
   }
 
@@ -719,10 +819,9 @@ export class PlaybackEngine extends EventEmitter {
       const track = await ytdlp.resolve(item.url)
       const startPosition = item.status === 'paused' ? (item.paused_position ?? undefined) : undefined
       await this.startPlayback(track.audioUrl, item.title, startPosition)
-    } catch {
-      // yt-dlp failed — remove and try next
-      this.queue.remove(item.id)
-      await this.playFront()
+    } catch (err) {
+      this.recordFailure(item, err)
+      await this.continueAfterFailure()
     }
   }
 

@@ -5,6 +5,9 @@ import { errorHandler } from '../../middleware/error-handler.js'
 import { closeDb, getDb } from '../../repositories/db.js'
 import { setupAuth, wrapWithAuth, getAuthCookie } from '../helpers/auth.js'
 
+// Keep test schedules in the future regardless of when the suite runs
+const FUTURE_YEAR = new Date().getUTCFullYear() + 1
+
 // Mock external deps
 vi.mock('../../services/ytdlp.service.js', () => ({
   resolve: vi.fn(),
@@ -81,7 +84,7 @@ describe('Schedule API', () => {
         payload: {
           url: 'https://youtube.com/watch?v=abc',
           title: 'Morning Song',
-          scheduled_at: '2026-03-01T07:00:00Z',
+          scheduled_at: `${FUTURE_YEAR}-03-01T07:00:00Z`,
         },
         headers: { cookie: authCookie },
       })
@@ -99,7 +102,7 @@ describe('Schedule API', () => {
         url: '/api/schedules',
         payload: {
           query: 'relaxing morning music',
-          scheduled_at: '2026-03-01T08:00:00Z',
+          scheduled_at: `${FUTURE_YEAR}-03-01T08:00:00Z`,
         },
         headers: { cookie: authCookie },
       })
@@ -114,7 +117,7 @@ describe('Schedule API', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/schedules',
-        payload: { scheduled_at: '2026-03-01T07:00:00Z' },
+        payload: { scheduled_at: `${FUTURE_YEAR}-03-01T07:00:00Z` },
         headers: { cookie: authCookie },
       })
 
@@ -156,7 +159,7 @@ describe('Schedule API', () => {
         payload: {
           url: 'https://youtube.com/watch?v=spk',
           title: 'Speaker Schedule',
-          scheduled_at: '2026-04-01T10:00:00Z',
+          scheduled_at: `${FUTURE_YEAR}-04-01T10:00:00Z`,
           speaker_id: 1,
         },
         headers: { cookie: authCookie },
@@ -175,7 +178,7 @@ describe('Schedule API', () => {
         payload: {
           url: 'https://youtube.com/watch?v=nosp',
           title: 'No Speaker Schedule',
-          scheduled_at: '2026-04-01T11:00:00Z',
+          scheduled_at: `${FUTURE_YEAR}-04-01T11:00:00Z`,
         },
         headers: { cookie: authCookie },
       })
@@ -214,7 +217,7 @@ describe('Schedule API', () => {
           url: 'https://youtube.com/watch?v=time1',
           title: 'Time Update Test',
           duration: 120,
-          scheduled_at: '2026-06-01T12:00:00Z',
+          scheduled_at: `${FUTURE_YEAR}-06-01T12:00:00Z`,
           speaker_id: 1,
         },
         headers: { cookie: authCookie },
@@ -227,7 +230,7 @@ describe('Schedule API', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/schedules/${pendingScheduleId}/time`,
-        payload: { scheduled_at: '2026-06-01T14:00:00Z' },
+        payload: { scheduled_at: `${FUTURE_YEAR}-06-01T14:00:00Z` },
         headers: { cookie: authCookie },
       })
 
@@ -235,14 +238,14 @@ describe('Schedule API', () => {
       const body = response.json()
       expect(body.success).toBe(true)
       expect(body.data).toHaveLength(1)
-      expect(body.data[0].scheduled_at).toBe('2026-06-01T14:00:00.000Z')
+      expect(body.data[0].scheduled_at).toBe(`${FUTURE_YEAR}-06-01T14:00:00.000Z`)
     })
 
     it('should return 404 for non-existent id', async () => {
       const response = await app.inject({
         method: 'PATCH',
         url: '/api/schedules/9999/time',
-        payload: { scheduled_at: '2026-06-01T14:00:00Z' },
+        payload: { scheduled_at: `${FUTURE_YEAR}-06-01T14:00:00Z` },
         headers: { cookie: authCookie },
       })
       expect(response.statusCode).toBe(404)
@@ -276,7 +279,7 @@ describe('Schedule API', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/schedules/${pendingScheduleId}/time`,
-        payload: { scheduled_at: '2026-06-01T15:00:00Z' },
+        payload: { scheduled_at: `${FUTURE_YEAR}-06-01T15:00:00Z` },
         headers: { cookie: authCookie },
       })
       expect(response.statusCode).toBe(400)
@@ -289,7 +292,7 @@ describe('Schedule API', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: '/api/schedules/abc/time',
-        payload: { scheduled_at: '2026-06-01T15:00:00Z' },
+        payload: { scheduled_at: `${FUTURE_YEAR}-06-01T15:00:00Z` },
         headers: { cookie: authCookie },
       })
       expect(response.statusCode).toBe(400)
@@ -306,7 +309,7 @@ describe('Schedule API', () => {
           url: 'https://youtube.com/watch?v=g1',
           title: 'Group Song 1',
           duration: 180,
-          scheduled_at: '2026-07-01T10:00:00Z',
+          scheduled_at: `${FUTURE_YEAR}-07-01T10:00:00Z`,
           group_id: groupId,
           speaker_id: 1,
         },
@@ -319,7 +322,7 @@ describe('Schedule API', () => {
           url: 'https://youtube.com/watch?v=g2',
           title: 'Group Song 2',
           duration: 180,
-          scheduled_at: '2026-07-01T10:03:00Z',
+          scheduled_at: `${FUTURE_YEAR}-07-01T10:03:00Z`,
           group_id: groupId,
           speaker_id: 1,
         },
@@ -332,7 +335,7 @@ describe('Schedule API', () => {
           url: 'https://youtube.com/watch?v=g3',
           title: 'Group Song 3',
           duration: 180,
-          scheduled_at: '2026-07-01T10:06:00Z',
+          scheduled_at: `${FUTURE_YEAR}-07-01T10:06:00Z`,
           group_id: groupId,
           speaker_id: 1,
         },
@@ -345,7 +348,7 @@ describe('Schedule API', () => {
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/schedules/${targetId}/time`,
-        payload: { scheduled_at: '2026-07-01T12:03:00Z' },
+        payload: { scheduled_at: `${FUTURE_YEAR}-07-01T12:03:00Z` },
         headers: { cookie: authCookie },
       })
 
@@ -356,9 +359,9 @@ describe('Schedule API', () => {
       // All items should have shifted by +2 hours
       const times = body.data.map((s: { scheduled_at: string }) => s.scheduled_at).sort()
       expect(times).toEqual([
-        '2026-07-01T12:00:00.000Z',
-        '2026-07-01T12:03:00.000Z',
-        '2026-07-01T12:06:00.000Z',
+        `${FUTURE_YEAR}-07-01T12:00:00.000Z`,
+        `${FUTURE_YEAR}-07-01T12:03:00.000Z`,
+        `${FUTURE_YEAR}-07-01T12:06:00.000Z`,
       ])
     })
 
@@ -373,7 +376,7 @@ describe('Schedule API', () => {
           url: 'https://youtube.com/watch?v=gp1',
           title: 'Past Check 1',
           duration: 180,
-          scheduled_at: '2026-08-01T10:00:00Z',
+          scheduled_at: `${FUTURE_YEAR}-08-01T10:00:00Z`,
           group_id: groupId,
           speaker_id: 1,
         },
@@ -386,7 +389,7 @@ describe('Schedule API', () => {
           url: 'https://youtube.com/watch?v=gp2',
           title: 'Past Check 2',
           duration: 180,
-          scheduled_at: '2026-08-01T10:30:00Z',
+          scheduled_at: `${FUTURE_YEAR}-08-01T10:30:00Z`,
           group_id: groupId,
           speaker_id: 1,
         },

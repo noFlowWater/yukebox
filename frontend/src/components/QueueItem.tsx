@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, GripVertical, Pause, Play, Square, X } from 'lucide-react'
+import { AlertCircle, Check, GripVertical, Pause, Play, RotateCcw, Square, X } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { StatusPill } from '@/components/StatusPill'
@@ -37,6 +37,7 @@ export function QueueItem({
   const isPlaying = isActive && !playbackPaused
   const isPaused = item.status === 'paused' || (isActive && playbackPaused)
   const isPlayed = item.status === 'played'
+  const isFailed = item.status === 'failed'
   const canDrag = !isPlaying && !isPaused
 
   return (
@@ -68,6 +69,8 @@ export function QueueItem({
         </span>
       ) : isPaused ? (
         <Pause className="h-4 w-4 text-warning shrink-0 self-center" />
+      ) : isFailed ? (
+        <AlertCircle className="h-4 w-4 text-destructive shrink-0 self-center" />
       ) : isPlayed ? (
         <Check className="h-4 w-4 text-muted-foreground shrink-0 self-center" />
       ) : (
@@ -96,6 +99,9 @@ export function QueueItem({
           )}
           {isPaused && (
             <StatusPill variant="warning">paused</StatusPill>
+          )}
+          {isFailed && (
+            <StatusPill variant="destructive">Failed</StatusPill>
           )}
           <div className="flex-1" />
 
@@ -147,7 +153,7 @@ export function QueueItem({
             </div>
           )}
 
-          {/* Actions — pending/played item: play + remove */}
+          {/* Actions — pending/played/failed item: play (retry) + remove */}
           {!isPlaying && !isPaused && (
             <div className="flex items-center gap-0.5 shrink-0">
               <Button
@@ -155,9 +161,9 @@ export function QueueItem({
                 size="icon"
                 className="h-7 w-7"
                 onClick={() => onPlay(item.id)}
-                title="Play now"
+                title={isFailed ? 'Retry' : 'Play now'}
               >
-                <Play className="h-4 w-4" />
+                {isFailed ? <RotateCcw className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               </Button>
               <Button
                 variant="ghost"

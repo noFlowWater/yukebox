@@ -200,3 +200,98 @@ describe('MpvProcess', () => {
     expect(mpv.isConnected()).toBe(false)
   })
 })
+
+describe('MpvProcess events', () => {
+  async function startWithFakes() {
+    vi.clearAllMocks()
+    const { EventEmitter } = await import('node:events')
+    const { spawn } = await import('node:child_process')
+    const { connect } = await import('node:net')
+
+    const processes: Array<InstanceType<typeof EventEmitter> & { kill: ReturnType<typeof vi.fn> }> = []
+    vi.mocked(spawn).mockImplementation(() => {
+      const proc = Object.assign(new EventEmitter(), { kill: vi.fn() })
+      processes.push(proc)
+      return proc as unknown as ReturnType<typeof spawn>
+    })
+
+    const sockets: Array<InstanceType<typeof EventEmitter> & { destroy: ReturnType<typeof vi.fn> }> = []
+    vi.mocked(connect).mockImplementation(() => {
+      const socket = Object.assign(new EventEmitter(), { destroy: vi.fn(), write: vi.fn() })
+      sockets.push(socket)
+      setTimeout(() => socket.emit('connect'), 0)
+      return socket as unknown as ReturnType<typeof connect>
+    })
+
+    const { MpvProcess } = await import('../../services/mpv-process.js')
+    const mpv = new MpvProcess(1, 'test_sink')
+    await mpv.start()
+
+    const send = (msg: object) => sockets[sockets.length - 1].emit('data', Buffer.from(JSON.stringify(msg) + '\n'))
+    return { mpv, processes, sockets, send }
+  }
+
+  it('should emit track-loaded when mpv reports file-loaded', async () => {
+    const { mpv, send } = await startWithFakes()
+    const onLoaded = vi.fn()
+    mpv.on('track-loaded', onLoaded)
+
+    send({ event: 'file-loaded' })
+
+    expect(onLoaded).toHaveBeenCalledTimes(1)
+    mpv.kill()
+  })
+
+  it('should include the mpv file_error in track-error', async () => {
+    const { mpv, send } = await startWithFakes()
+    const onError = vi.fn()
+    mpv.on('track-error', onError)
+
+    send({ event: 'end-file', reason: 'error', file_error: 'loading failed' })
+
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect((onError.mock.calls[0][0] as Error).message).toContain('loading failed')
+    mpv.kill()
+  })
+
+  it('should ignore end-file with reason stop', async () => {
+    const { mpv, send } = await startWithFakes()
+    const onEnd = vi.fn()
+    const onError = vi.fn()
+    mpv.on('track-end', onEnd)
+    mpv.on('track-error', onError)
+
+    send({ event: 'end-file', reason: 'stop' })
+
+    expect(onEnd).not.toHaveBeenCalled()
+    expect(onError).not.toHaveBeenCalled()
+    mpv.kill()
+  })
+
+  it('should emit process-exit when the running mpv process exits', async () => {
+    const { mpv, processes } = await startWithFakes()
+    const onExit = vi.fn()
+    mpv.on('process-exit', onExit)
+
+    processes[0].emit('exit', 1)
+
+    expect(onExit).toHaveBeenCalledWith(1)
+    expect(mpv.isConnected()).toBe(false)
+  })
+
+  it('should ignore the exit of a process that was already replaced', async () => {
+    const { mpv, processes, sockets } = await startWithFakes()
+    const onExit = vi.fn()
+    mpv.on('process-exit', onExit)
+
+    // Old process is killed and a new one started before its exit event fires
+    mpv.kill()
+    await mpv.start()
+    processes[0].emit('exit', null)
+
+    expect(onExit).not.toHaveBeenCalled()
+    expect(mpv.isConnected()).toBe(true)
+    expect(sockets[1].destroy).not.toHaveBeenCalled()
+    mpv.kill()
+  })
+})

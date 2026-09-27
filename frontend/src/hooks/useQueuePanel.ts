@@ -55,6 +55,8 @@ export function useQueuePanel(active = true) {
       fetchQueue()
     } catch (err) {
       handleApiError(err, 'Play failed')
+      // The item stays in the queue marked as failed — refresh to show it
+      fetchQueue()
     }
   }, [fetchQueue])
 
@@ -170,7 +172,7 @@ export function useQueuePanel(active = true) {
     }
   }, [fetchQueue])
 
-  const hasPending = queue.some((item) => item.status === 'pending' || item.status === 'played')
+  const hasPending = queue.some((item) => item.status === 'pending' || item.status === 'played' || item.status === 'failed')
 
   return {
     queue,

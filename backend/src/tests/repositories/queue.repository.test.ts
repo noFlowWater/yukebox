@@ -121,19 +121,56 @@ describe('queue.repository', () => {
     expect(next!.title).toBe('Song 2')
   })
 
-  it('should remove playing items and reorder', () => {
+  it('should mark an item as failed and keep it in place', () => {
+    queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100 })
+    const item2 = queueRepo.insert({ url: 'url2', title: 'Song 2', thumbnail: '', duration: 200 })
+    queueRepo.insert({ url: 'url3', title: 'Song 3', thumbnail: '', duration: 300 })
+
+    queueRepo.markPlaying(item2.id)
+    expect(queueRepo.markFailed(item2.id)).toBe(true)
+
+    const items = queueRepo.findAll()
+    expect(items).toHaveLength(3)
+    expect(items[1].id).toBe(item2.id)
+    expect(items[1].status).toBe('failed')
+    expect(items[1].paused_position).toBeNull()
+  })
+
+  it('should return false when marking a missing item as failed', () => {
+    expect(queueRepo.markFailed(999)).toBe(false)
+  })
+
+  it('should not treat failed items as pending', () => {
     const item1 = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100 })
     queueRepo.insert({ url: 'url2', title: 'Song 2', thumbnail: '', duration: 200 })
+
+    queueRepo.markFailed(item1.id)
+
+    expect(queueRepo.findFirstPending()!.title).toBe('Song 2')
+  })
+
+  it('should include failed items when clearing', () => {
+    const item1 = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100 })
+    const item2 = queueRepo.insert({ url: 'url2', title: 'Song 2', thumbnail: '', duration: 200 })
     queueRepo.insert({ url: 'url3', title: 'Song 3', thumbnail: '', duration: 300 })
 
     queueRepo.markPlaying(item1.id)
-    const removed = queueRepo.removePlaying()
-    expect(removed).toBe(1)
+    queueRepo.markFailed(item2.id)
+
+    expect(queueRepo.clearPending()).toBe(2) // failed + pending
 
     const remaining = queueRepo.findAll()
-    expect(remaining).toHaveLength(2)
-    expect(remaining[0].position).toBe(0)
-    expect(remaining[0].title).toBe('Song 2')
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0].status).toBe('playing')
+  })
+
+  it('should keep failed items when resetting playing items on startup', () => {
+    const item = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100 })
+    queueRepo.markFailed(item.id)
+
+    queueRepo.resetPlayingToPending()
+
+    expect(queueRepo.findById(item.id)!.status).toBe('failed')
   })
 
   it('should clear pending items only', () => {

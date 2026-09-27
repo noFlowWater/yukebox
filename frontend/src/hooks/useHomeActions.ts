@@ -187,6 +187,8 @@ export function useHomeActions() {
       emitQueueUpdated()
     } catch (err) {
       handleApiError(err, 'Play failed')
+      // The item stays in the queue marked as failed — refresh to show it
+      emitQueueUpdated()
     }
   }, [])
 

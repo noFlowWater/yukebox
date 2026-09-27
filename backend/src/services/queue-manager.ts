@@ -118,11 +118,6 @@ export class QueueManager {
     this.reload()
   }
 
-  removePlaying(): void {
-    queueRepo.removePlaying()
-    this.reload()
-  }
-
   resetPlayingToPending(): void {
     queueRepo.resetPlayingToPending()
     this.reload()
@@ -130,6 +125,12 @@ export class QueueManager {
 
   markPlayed(id: number): boolean {
     const result = queueRepo.markPlayed(id)
+    if (result) this.reload()
+    return result
+  }
+
+  markFailed(id: number): boolean {
+    const result = queueRepo.markFailed(id)
     if (result) this.reload()
     return result
   }

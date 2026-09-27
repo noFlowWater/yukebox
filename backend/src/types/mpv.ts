@@ -46,6 +46,7 @@ export interface MpvIpcResponse {
   data?: unknown
   event?: string
   reason?: string
+  file_error?: string
   id?: number
   name?: string
 }

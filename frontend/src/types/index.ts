@@ -51,7 +51,7 @@ export interface QueueItem {
   thumbnail: string
   duration: number
   position: number
-  status: 'pending' | 'playing' | 'paused' | 'played'
+  status: 'pending' | 'playing' | 'paused' | 'played' | 'failed'
   paused_position: number | null
   added_at: string
   speaker_id: number | null

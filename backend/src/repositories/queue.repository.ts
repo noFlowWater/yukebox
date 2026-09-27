@@ -1,4 +1,4 @@
-import { getDb } from './db.js'
+import { getDb, renumberQueuePositions } from './db.js'
 import type { QueueItem, CreateQueueItem } from '../types/queue.js'
 
 export function findAll(speakerId?: number): QueueItem[] {
@@ -24,12 +24,15 @@ export function findFirstPending(): QueueItem | undefined {
 export function insert(item: CreateQueueItem): QueueItem {
   const db = getDb()
 
-  const maxRow = db.prepare('SELECT MAX(position) as max_pos FROM queue').get() as { max_pos: number | null }
+  const speakerId = item.speaker_id ?? null
+
+  // Positions are per speaker (0..n-1 within each speaker's queue)
+  const maxRow = db.prepare('SELECT MAX(position) as max_pos FROM queue WHERE speaker_id IS ?').get(speakerId) as { max_pos: number | null }
   const nextPosition = (maxRow.max_pos ?? -1) + 1
 
   const result = db.prepare(
     'INSERT INTO queue (url, title, thumbnail, duration, position, speaker_id, schedule_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(item.url, item.title, item.thumbnail, item.duration, nextPosition, item.speaker_id ?? null, item.schedule_id ?? null)
+  ).run(item.url, item.title, item.thumbnail, item.duration, nextPosition, speakerId, item.schedule_id ?? null)
 
   return findById(Number(result.lastInsertRowid))!
 }
@@ -37,11 +40,13 @@ export function insert(item: CreateQueueItem): QueueItem {
 export function insertAtTop(item: CreateQueueItem): QueueItem {
   const db = getDb()
 
+  const speakerId = item.speaker_id ?? null
+
   const transaction = db.transaction(() => {
-    db.prepare('UPDATE queue SET position = position + 1').run()
+    db.prepare('UPDATE queue SET position = position + 1 WHERE speaker_id IS ?').run(speakerId)
     const result = db.prepare(
       'INSERT INTO queue (url, title, thumbnail, duration, position, speaker_id, schedule_id) VALUES (?, ?, ?, ?, 0, ?, ?)'
-    ).run(item.url, item.title, item.thumbnail, item.duration, item.speaker_id ?? null, item.schedule_id ?? null)
+    ).run(item.url, item.title, item.thumbnail, item.duration, speakerId, item.schedule_id ?? null)
     return Number(result.lastInsertRowid)
   })
 
@@ -62,7 +67,7 @@ export function remove(id: number): boolean {
 
   const transaction = db.transaction(() => {
     db.prepare('DELETE FROM queue WHERE id = ?').run(item.id)
-    db.prepare('UPDATE queue SET position = position - 1 WHERE position > ?').run(item.position)
+    db.prepare('UPDATE queue SET position = position - 1 WHERE speaker_id IS ? AND position > ?').run(item.speaker_id, item.position)
   })
 
   transaction()
@@ -71,20 +76,25 @@ export function remove(id: number): boolean {
 
 export function markPlaying(id: number): boolean {
   const db = getDb()
+  const item = findById(id)
+  if (!item) return false
+
   const transaction = db.transaction(() => {
-    // Reset any existing playing items to pending first
-    db.prepare("UPDATE queue SET status = 'pending', paused_position = NULL WHERE status = 'playing' AND id != ?").run(id)
+    // Reset any other playing item on the same speaker to pending first
+    db.prepare(
+      "UPDATE queue SET status = 'pending', paused_position = NULL WHERE status = 'playing' AND id != ? AND speaker_id IS ?"
+    ).run(id, item.speaker_id)
     const result = db.prepare("UPDATE queue SET status = 'playing', paused_position = NULL WHERE id = ?").run(id)
     return result.changes > 0
   })
   return transaction()
 }
 
-export function pausePlaying(playbackPosition: number): boolean {
+export function pausePlaying(speakerId: number, playbackPosition: number): boolean {
   const db = getDb()
   const result = db.prepare(
-    "UPDATE queue SET status = 'paused', paused_position = ? WHERE status = 'playing'"
-  ).run(playbackPosition)
+    "UPDATE queue SET status = 'paused', paused_position = ? WHERE status = 'playing' AND speaker_id = ?"
+  ).run(playbackPosition, speakerId)
   return result.changes > 0
 }
 
@@ -100,14 +110,8 @@ export function clearPending(speakerId?: number): number {
   const result = speakerId !== undefined
     ? db.prepare("DELETE FROM queue WHERE status IN ('pending', 'played', 'failed') AND speaker_id = ?").run(speakerId)
     : db.prepare("DELETE FROM queue WHERE status IN ('pending', 'played', 'failed')").run()
-  // Reorder remaining items
-  const remaining = db.prepare("SELECT id FROM queue ORDER BY position ASC").all() as { id: number }[]
-  const reorder = db.transaction(() => {
-    for (let i = 0; i < remaining.length; i++) {
-      db.prepare('UPDATE queue SET position = ? WHERE id = ?').run(i, remaining[i].id)
-    }
-  })
-  reorder()
+  // Close the position gaps left behind
+  db.transaction(() => renumberQueuePositions(db, speakerId))()
   return result.changes
 }
 
@@ -124,12 +128,12 @@ export function updatePosition(id: number, newPosition: number): boolean {
   const transaction = db.transaction(() => {
     if (newPosition < oldPosition) {
       db.prepare(
-        'UPDATE queue SET position = position + 1 WHERE position >= ? AND position < ?'
-      ).run(newPosition, oldPosition)
+        'UPDATE queue SET position = position + 1 WHERE speaker_id IS ? AND position >= ? AND position < ?'
+      ).run(item.speaker_id, newPosition, oldPosition)
     } else {
       db.prepare(
-        'UPDATE queue SET position = position - 1 WHERE position > ? AND position <= ?'
-      ).run(oldPosition, newPosition)
+        'UPDATE queue SET position = position - 1 WHERE speaker_id IS ? AND position > ? AND position <= ?'
+      ).run(item.speaker_id, oldPosition, newPosition)
     }
 
     db.prepare('UPDATE queue SET position = ? WHERE id = ?').run(newPosition, id)
@@ -157,9 +161,11 @@ export function resetPlayedToPending(speakerId: number): number {
   return result.changes
 }
 
-export function resetPlayingToPending(): number {
+export function resetPlayingToPending(speakerId: number): number {
   const db = getDb()
-  const result = db.prepare("UPDATE queue SET status = 'pending', paused_position = NULL WHERE status = 'playing'").run()
+  const result = db.prepare(
+    "UPDATE queue SET status = 'pending', paused_position = NULL WHERE status = 'playing' AND speaker_id = ?"
+  ).run(speakerId)
   return result.changes
 }
 
@@ -168,12 +174,15 @@ export function moveToBack(id: number): void {
   const item = findById(id)
   if (!item) return
 
-  const maxRow = db.prepare('SELECT MAX(position) as max_pos FROM queue').get() as { max_pos: number | null }
-  const newPosition = (maxRow.max_pos ?? 0) + 1
-
-  db.prepare(
-    "UPDATE queue SET status = 'pending', position = ?, paused_position = NULL WHERE id = ?",
-  ).run(newPosition, id)
+  // Close the gap at the old position, then append at the end of this speaker's queue
+  const transaction = db.transaction(() => {
+    db.prepare('UPDATE queue SET position = position - 1 WHERE speaker_id IS ? AND position > ?').run(item.speaker_id, item.position)
+    const maxRow = db.prepare('SELECT MAX(position) as max_pos FROM queue WHERE speaker_id IS ? AND id != ?').get(item.speaker_id, id) as { max_pos: number | null }
+    db.prepare(
+      "UPDATE queue SET status = 'pending', position = ?, paused_position = NULL WHERE id = ?",
+    ).run((maxRow.max_pos ?? -1) + 1, id)
+  })
+  transaction()
 }
 
 export function findRandomPending(speakerId: number): QueueItem | undefined {

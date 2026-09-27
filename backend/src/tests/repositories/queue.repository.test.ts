@@ -165,10 +165,11 @@ describe('queue.repository', () => {
   })
 
   it('should keep failed items when resetting playing items on startup', () => {
-    const item = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100 })
+    const speaker = speakerRepo.insert('sink1', 'Test Speaker')
+    const item = queueRepo.insert({ url: 'url1', title: 'Song 1', thumbnail: '', duration: 100, speaker_id: speaker.id })
     queueRepo.markFailed(item.id)
 
-    queueRepo.resetPlayingToPending()
+    queueRepo.resetPlayingToPending(speaker.id)
 
     expect(queueRepo.findById(item.id)!.status).toBe('failed')
   })
@@ -321,5 +322,115 @@ describe('queue.repository', () => {
 
     const random = queueRepo.findRandomPending(speaker.id)
     expect(random).toBeUndefined()
+  })
+})
+
+describe('queue.repository — per-speaker isolation', () => {
+  function setup() {
+    const a = speakerRepo.insert('sink_a', 'Speaker A').id
+    const b = speakerRepo.insert('sink_b', 'Speaker B').id
+    const add = (speakerId: number, title: string) =>
+      queueRepo.insert({ url: title, title, thumbnail: '', duration: 100, speaker_id: speakerId })
+    return { a, b, add }
+  }
+
+  function snapshot(speakerId: number): Array<[string, number, string]> {
+    return queueRepo.findAll(speakerId).map((i) => [i.title, i.position, i.status])
+  }
+
+  it('should number positions per speaker', () => {
+    const { a, b, add } = setup()
+    add(a, 'A1')
+    add(b, 'B1')
+    add(a, 'A2')
+    add(b, 'B2')
+
+    expect(snapshot(a)).toEqual([['A1', 0, 'pending'], ['A2', 1, 'pending']])
+    expect(snapshot(b)).toEqual([['B1', 0, 'pending'], ['B2', 1, 'pending']])
+  })
+
+  it('should not shift other speakers when inserting at top or removing', () => {
+    const { a, b, add } = setup()
+    const a1 = add(a, 'A1')
+    add(b, 'B1')
+    add(b, 'B2')
+
+    queueRepo.insertAtTop({ url: 'A0', title: 'A0', thumbnail: '', duration: 100, speaker_id: a })
+    queueRepo.remove(a1.id)
+
+    expect(snapshot(a)).toEqual([['A0', 0, 'pending']])
+    expect(snapshot(b)).toEqual([['B1', 0, 'pending'], ['B2', 1, 'pending']])
+  })
+
+  it('should keep another speaker playing when marking an item as playing', () => {
+    const { a, b, add } = setup()
+    const a1 = add(a, 'A1')
+    const b1 = add(b, 'B1')
+
+    queueRepo.markPlaying(b1.id)
+    queueRepo.markPlaying(a1.id)
+
+    expect(queueRepo.findById(b1.id)!.status).toBe('playing')
+    expect(queueRepo.findById(a1.id)!.status).toBe('playing')
+  })
+
+  it('should only pause and reset the given speaker', () => {
+    const { a, b, add } = setup()
+    const a1 = add(a, 'A1')
+    const b1 = add(b, 'B1')
+    queueRepo.markPlaying(a1.id)
+    queueRepo.markPlaying(b1.id)
+
+    queueRepo.pausePlaying(a, 30)
+    expect(queueRepo.findById(a1.id)).toMatchObject({ status: 'paused', paused_position: 30 })
+    expect(queueRepo.findById(b1.id)!.status).toBe('playing')
+
+    queueRepo.markPlaying(a1.id)
+    queueRepo.resetPlayingToPending(a)
+    expect(queueRepo.findById(a1.id)!.status).toBe('pending')
+    expect(queueRepo.findById(b1.id)!.status).toBe('playing')
+  })
+
+  it('should reorder within a speaker using per-speaker indexes', () => {
+    const { a, b, add } = setup()
+    add(b, 'B1')
+    add(a, 'A1')
+    add(b, 'B2')
+    add(a, 'A2')
+    const a3 = add(a, 'A3')
+
+    // Frontend sends the index within the speaker's own list
+    queueRepo.updatePosition(a3.id, 0)
+
+    expect(snapshot(a)).toEqual([['A3', 0, 'pending'], ['A1', 1, 'pending'], ['A2', 2, 'pending']])
+    expect(snapshot(b)).toEqual([['B1', 0, 'pending'], ['B2', 1, 'pending']])
+  })
+
+  it('should move to back without leaving gaps', () => {
+    const { a, b, add } = setup()
+    const a1 = add(a, 'A1')
+    add(a, 'A2')
+    add(b, 'B1')
+    add(a, 'A3')
+
+    queueRepo.moveToBack(a1.id)
+
+    expect(snapshot(a)).toEqual([['A2', 0, 'pending'], ['A3', 1, 'pending'], ['A1', 2, 'pending']])
+    expect(snapshot(b)).toEqual([['B1', 0, 'pending']])
+  })
+
+  it('should only clear and renumber the given speaker', () => {
+    const { a, b, add } = setup()
+    const a1 = add(a, 'A1')
+    add(a, 'A2')
+    add(b, 'B1')
+    const b2 = add(b, 'B2')
+    queueRepo.markPlaying(b2.id)
+    queueRepo.markPlaying(a1.id)
+
+    expect(queueRepo.clearPending(b)).toBe(1)
+
+    expect(snapshot(b)).toEqual([['B2', 0, 'playing']])
+    expect(snapshot(a)).toEqual([['A1', 0, 'playing'], ['A2', 1, 'pending']])
   })
 })
